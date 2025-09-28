@@ -13,7 +13,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 
@@ -27,6 +29,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class BankingTransactionIntegrationTestSimple {
 
     @Autowired
+    private WebApplicationContext webApplicationContext;
+    
     private MockMvc mockMvc;
 
     @Autowired
@@ -37,6 +41,7 @@ class BankingTransactionIntegrationTestSimple {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
         
         // Setup test data
         AccountEntity testAccount = new AccountEntity();
@@ -133,14 +138,16 @@ class BankingTransactionIntegrationTestSimple {
     }
 
     @Test
-    void getTransactionReportShouldReturnReportList() throws Exception {
+    void getTransactionReportShouldReturnErrorWhenNoTransactionsFound() throws Exception {
         // When
         MvcResult result = mockMvc.perform(get("/transaction/report")
                         .param("date", "28/09/2025"))
                 .andReturn();
 
         // Then
-        assertEquals(200, result.getResponse().getStatus());
-        assertNotNull(result.getResponse().getContentAsString());
+        assertEquals(400, result.getResponse().getStatus());
+        String responseContent = result.getResponse().getContentAsString();
+        assertTrue(responseContent.contains("No existen movimientos") || responseContent.contains("movimientos") || responseContent.contains("fecha"),
+                "Response content was: " + responseContent);
     }
 }

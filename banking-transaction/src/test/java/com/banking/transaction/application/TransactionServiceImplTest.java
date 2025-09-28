@@ -3,7 +3,7 @@ package com.banking.transaction.application;
 import com.banking.transaction.application.dto.TransactionRequest;
 import com.banking.transaction.application.dto.TransactionResponse;
 import com.banking.transaction.application.dto.TransactionReportDTO;
-import com.banking.transaction.domain.AccountTransaction;
+import com.banking.transaction.application.dto.TransactionListResponse;
 import com.banking.transaction.infrastructure.AccountEntity;
 import com.banking.transaction.infrastructure.AccountRepository;
 import com.banking.transaction.infrastructure.AccountTransactionEntity;
@@ -24,8 +24,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -166,26 +164,26 @@ class TransactionServiceImplTest {
     void getAllTransactions_ShouldReturnTransactionList() {
         // Given
         List<AccountTransactionEntity> entities = Arrays.asList(transactionEntity);
-        when(transactionRepository.findAll()).thenReturn(entities);
+        when(transactionRepository.findAllWithAccount()).thenReturn(entities);
 
         // When
-        List<AccountTransaction> result = transactionService.getAllTransactions();
+        List<TransactionListResponse> result = transactionService.getAllTransactions();
 
         // Then
         assertThat(result).isNotNull();
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTransactionId()).isEqualTo(1L);
+        assertThat(result.get(0).getAccountNumber()).isEqualTo("225487");
         assertThat(result.get(0).getTransactionType()).isEqualTo("Deposito");
         assertThat(result.get(0).getAmount()).isEqualTo(BigDecimal.valueOf(575.00));
 
-        verify(transactionRepository, times(1)).findAll();
+        verify(transactionRepository, times(1)).findAllWithAccount();
     }
 
     @Test
     void getTransactionReport_ShouldReturnReportList() {
         // Given
         List<AccountTransactionEntity> entities = Arrays.asList(transactionEntity);
-        when(transactionRepository.findAll()).thenReturn(entities);
+        when(transactionRepository.findByTransactionDate(any())).thenReturn(entities);
 
         // When
         List<TransactionReportDTO> result = transactionService.getTransactionReport("28/09/2025");
@@ -195,7 +193,30 @@ class TransactionServiceImplTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getMovimiento()).isEqualTo(BigDecimal.valueOf(575.00));
 
-        verify(transactionRepository, times(1)).findAll();
+        verify(transactionRepository, times(1)).findByTransactionDate(any());
+    }
+
+    @Test
+    void getTransactionReport_ShouldThrowException_WhenNoTransactionsFoundForDate() {
+        // Given
+        when(transactionRepository.findByTransactionDate(any())).thenReturn(Arrays.asList());
+
+        // When & Then
+        assertThatThrownBy(() -> transactionService.getTransactionReport("28/09/2025"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("No existen movimientos en la fecha 28/09/2025");
+
+        verify(transactionRepository, times(1)).findByTransactionDate(any());
+    }
+
+    @Test
+    void getTransactionReport_ShouldThrowException_WhenInvalidDateFormat() {
+        // When & Then
+        assertThatThrownBy(() -> transactionService.getTransactionReport("invalid-date"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Formato de fecha inválido. Use dd/MM/yyyy");
+
+        verify(transactionRepository, never()).findByTransactionDate(any());
     }
 
     @Test
@@ -203,7 +224,6 @@ class TransactionServiceImplTest {
         // Given
         Long transactionId = 1L;
         when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(transactionEntity));
-        when(accountRepository.findById(anyLong())).thenReturn(Optional.of(accountEntity));
         when(transactionRepository.save(any(AccountTransactionEntity.class))).thenReturn(transactionEntity);
         when(accountRepository.save(any(AccountEntity.class))).thenReturn(accountEntity);
 

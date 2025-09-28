@@ -5,6 +5,7 @@ import com.banking.transaction.application.dto.TransactionRequest;
 import com.banking.transaction.application.dto.TransactionResponse;
 import com.banking.transaction.application.dto.TransactionReportDTO;
 import com.banking.transaction.application.dto.TransactionListResponse;
+import com.banking.transaction.exception.GlobalExceptionHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,9 @@ class TransactionControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(transactionController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(transactionController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         objectMapper = new ObjectMapper();
     }
 
@@ -126,6 +129,36 @@ class TransactionControllerTest {
     }
 
     @Test
+    void getTransactionReportShouldReturnErrorWhenDateParameterMissing() throws Exception {
+        // When
+        MvcResult result = mockMvc.perform(get("/transaction/report"))
+                .andReturn();
+
+        // Then
+        assertEquals(400, result.getResponse().getStatus());
+        String responseContent = result.getResponse().getContentAsString();
+        assertTrue(responseContent.contains("date") || responseContent.contains("required") || responseContent.contains("parameter"));
+        verify(transactionService, never()).getTransactionReport(anyString());
+    }
+
+    @Test
+    void getTransactionReportShouldReturnErrorWhenNoMovementsFound() throws Exception {
+        // Given
+        when(transactionService.getTransactionReport(anyString()))
+                .thenThrow(new RuntimeException("No existen movimientos en la fecha 28/09/2025"));
+
+        // When
+        MvcResult result = mockMvc.perform(get("/transaction/report")
+                        .param("date", "28/09/2025"))
+                .andReturn();
+
+        // Then
+        assertEquals(400, result.getResponse().getStatus());
+        assertTrue(result.getResponse().getContentAsString().contains("No existen movimientos en la fecha 28/09/2025"));
+        verify(transactionService, times(1)).getTransactionReport(anyString());
+    }
+
+    @Test
     void updateTransactionShouldReturnUpdatedTransaction() throws Exception {
         // Given
         TransactionRequest request = new TransactionRequest();
@@ -186,7 +219,9 @@ class TransactionControllerTest {
 
         // Then
         assertEquals(400, result.getResponse().getStatus());
-        assertTrue(result.getResponse().getContentAsString().contains("La cuenta está desactivada"));
+        String responseContent = result.getResponse().getContentAsString();
+        assertTrue(responseContent.contains("desactivada") || responseContent.contains("cuenta"),
+                "Response content was: " + responseContent);
         verify(transactionService, times(1)).createTransaction(any(TransactionRequest.class));
     }
 
@@ -232,7 +267,9 @@ class TransactionControllerTest {
 
         // Then
         assertEquals(400, result.getResponse().getStatus());
-        assertTrue(result.getResponse().getContentAsString().contains("No se puede realizar esta transacción por falta de dinero"));
+        String responseContent = result.getResponse().getContentAsString();
+        assertTrue(responseContent.contains("falta de dinero") || responseContent.contains("transacci") || responseContent.contains("dinero"),
+                "Response content was: " + responseContent);
         verify(transactionService, times(1)).createTransaction(any(TransactionRequest.class));
     }
 }

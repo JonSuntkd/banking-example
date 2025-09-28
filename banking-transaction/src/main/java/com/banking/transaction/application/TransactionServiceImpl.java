@@ -4,20 +4,18 @@ import com.banking.transaction.application.dto.TransactionRequest;
 import com.banking.transaction.application.dto.TransactionResponse;
 import com.banking.transaction.application.dto.TransactionReportDTO;
 import com.banking.transaction.application.dto.TransactionListResponse;
-import com.banking.transaction.domain.AccountTransaction;
 import com.banking.transaction.infrastructure.AccountEntity;
 import com.banking.transaction.infrastructure.AccountRepository;
 import com.banking.transaction.infrastructure.AccountTransactionEntity;
 import com.banking.transaction.infrastructure.AccountTransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.jpa.repository.Query;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -87,9 +85,24 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public List<TransactionReportDTO> getTransactionReport(String date) {
-        // Esta implementación necesitaría un query nativo para obtener todos los datos necesarios
-        // Por simplicidad, devolvemos un ejemplo con los datos disponibles
-        return transactionRepository.findAll().stream()
+        // Parse the date from dd/MM/yyyy format to LocalDate
+        LocalDate transactionDate;
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            transactionDate = LocalDate.parse(date, formatter);
+        } catch (Exception e) {
+            throw new RuntimeException("Formato de fecha inválido. Use dd/MM/yyyy");
+        }
+        
+        // Find transactions for the specific date
+        List<AccountTransactionEntity> transactions = transactionRepository.findByTransactionDate(transactionDate);
+        
+        // Check if any transactions exist for this date
+        if (transactions.isEmpty()) {
+            throw new RuntimeException("No existen movimientos en la fecha " + date);
+        }
+        
+        return transactions.stream()
                 .map(this::toReportDTO)
                 .collect(Collectors.toList());
     }
@@ -143,17 +156,6 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional
     public void deleteTransaction(Long id) {
         transactionRepository.deleteById(id);
-    }
-
-    private AccountTransaction toDomain(AccountTransactionEntity entity) {
-        AccountTransaction tx = new AccountTransaction();
-        tx.setTransactionId(entity.getTransactionId());
-        tx.setAccountId(entity.getAccount() != null ? entity.getAccount().getAccountId() : null);
-        tx.setTransactionDate(entity.getTransactionDate());
-        tx.setTransactionType(entity.getTransactionType());
-        tx.setAmount(entity.getAmount());
-        tx.setBalance(entity.getBalance());
-        return tx;
     }
 
     private TransactionReportDTO toReportDTO(AccountTransactionEntity entity) {

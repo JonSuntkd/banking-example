@@ -29,7 +29,10 @@ public class TransactionController {
     }
 
     @GetMapping("/report")
-    public ResponseEntity<List<TransactionReportDTO>> getReport(@RequestParam(required = false) String date) {
+    public ResponseEntity<List<TransactionReportDTO>> getReport(@RequestParam String date) {
+        if (date == null || date.trim().isEmpty()) {
+            throw new RuntimeException("El parámetro 'date' es requerido");
+        }
         return ResponseEntity.ok(transactionService.getTransactionReport(date));
     }
 

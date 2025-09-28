@@ -1,0 +1,75 @@
+server:
+  port: 8001
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: banking-client
+  
+  # Database Configuration for Railway PostgreSQL
+  datasource:
+    url: jdbc:postgresql://gondola.proxy.rlwy.net:40809/railway
+    username: postgres
+    password: gVGvsyyMauTSYTpFwemcKILhuLuvUacf
+    driver-class-name: org.postgresql.Driver
+    
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Use 'create' for first run, then 'validate'
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    defer-datasource-initialization: false
+    
+  # Connection Pool Configuration
+  hikari:
+    connection-timeout: 20000
+    maximum-pool-size: 10
+    minimum-idle: 5
+    idle-timeout: 300000
+    max-lifetime: 1200000
+
+# Logging Configuration
+logging:
+  level:
+    com.banking.client: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management and Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  health:
+    probes:
+      enabled: true
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+  info:
+    title: Banking Client API
+    description: RESTful API for managing banking clients using hexagonal architecture
+    version: 1.0.0
+    contact:
+      name: Banking Team
+      email: banking@example.com

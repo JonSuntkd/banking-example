@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { retry, catchError } from 'rxjs/operators';
 import { ClientRepository } from '@domain/repositories/client.repository';
 import { Client, ClientBasicDto, ClientUpdateDto } from '@domain/entities/client.entity';
 
@@ -12,7 +13,7 @@ import { Client, ClientBasicDto, ClientUpdateDto } from '@domain/entities/client
   providedIn: 'root'
 })
 export class ClientHttpRepository implements ClientRepository {
-  private readonly baseUrl = 'http://localhost:8001/api/v1/client';
+  private readonly baseUrl = '/api/v1/client';
 
   constructor(private readonly http: HttpClient) {}
 
@@ -20,8 +21,25 @@ export class ClientHttpRepository implements ClientRepository {
     return this.http.post<Client>(`${this.baseUrl}/basic`, client);
   }
 
+  private handleError(error: HttpErrorResponse) {
+    let errorMessage = 'An error occurred';
+    if (error.error instanceof ErrorEvent) {
+      // Client-side error
+      errorMessage = `Error: ${error.error.message}`;
+    } else {
+      // Server-side error
+      errorMessage = `Error Code: ${error.status}\nMessage: ${error.message}`;
+    }
+    console.error(errorMessage);
+    return throwError(() => new Error(errorMessage));
+  }
+
   getAllClients(): Observable<Client[]> {
-    return this.http.get<Client[]>(this.baseUrl);
+    return this.http.get<Client[]>(this.baseUrl)
+      .pipe(
+        retry(3),
+        catchError((error) => this.handleError(error))
+      );
   }
 
   getClientById(id: number): Observable<Client> {

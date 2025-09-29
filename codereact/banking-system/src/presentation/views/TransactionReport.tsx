@@ -7,6 +7,64 @@ const TransactionReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Función para generar contenido PDF mock (texto simple)
+  const generateMockPdfContent = (reportDate: string): string => {
+    const content = `
+REPORTE DE MOVIMIENTOS BANCARIOS (DATOS DE PRUEBA)
+==================================================
+
+Fecha del reporte: ${reportDate}
+Generado el: ${new Date().toLocaleString()}
+
+TRANSACCIONES ENCONTRADAS:
+--------------------------
+
+1. Depósito - $500.00
+   Cliente: Juan Pérez
+   Cuenta: 1001-2345
+   Hora: 10:30 AM
+
+2. Retiro - $150.00
+   Cliente: María García
+   Cuenta: 1001-6789
+   Hora: 2:15 PM
+
+3. Transferencia - $300.00
+   Cliente: Carlos López
+   Cuenta Origen: 1001-1111
+   Cuenta Destino: 1001-2222
+   Hora: 4:45 PM
+
+RESUMEN:
+--------
+Total transacciones: 3
+Monto total procesado: $950.00
+
+Nota: Este es un reporte de prueba generado porque el servidor 
+de transacciones no está disponible en el puerto 8003.
+`;
+    return content;
+  };
+
+  // Función para probar la conectividad con el servidor
+  const testServerConnection = async () => {
+    try {
+      console.log('Probando conectividad con el servidor...');
+      const response = await axios.get('/transaction/health', {
+        timeout: 5000
+      });
+      console.log('Servidor respondió:', response.status);
+      setError('✅ Servidor disponible');
+    } catch (error) {
+      console.error('Error de conectividad:', error);
+      if (axios.isAxiosError(error)) {
+        console.log('Status:', error.response?.status);
+        console.log('URL llamada:', error.config?.url);
+        setError(`❌ Servidor no disponible en puerto 8003. Usando datos de prueba.`);
+      }
+    }
+  };
+
   const handleGenerateReport = async () => {
     if (!date) {
       setError('Por favor selecciona una fecha');
@@ -17,24 +75,49 @@ const TransactionReport: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Llamar al endpoint para obtener el PDF
-      const response = await axios.get(`/transaction/report?date=${date}`, {
-        responseType: 'blob', // Importante para manejar archivos binarios
-        headers: {
-          'Accept': 'application/pdf'
-        }
-      });
+      console.log('Haciendo petición a:', `/transaction/report?date=${date}`);
+      console.log('Fecha seleccionada:', date);
+      
+      // Primero intentar con el servidor real
+      try {
+        const response = await axios.get(`/transaction/report?date=${date}`, {
+          responseType: 'blob',
+          headers: {
+            'Accept': 'application/pdf'
+          },
+          timeout: 10000
+        });
 
-      // Crear un blob URL y descargar el archivo
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte-movimientos-${date}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+        console.log('Respuesta recibida del servidor real:', response.status);
+        
+        // Crear un blob URL y descargar el archivo
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `reporte-movimientos-${date}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+      } catch (serverError) {
+        console.warn('Servidor no disponible, generando reporte mock:', serverError);
+        
+        // Generar un PDF mock como fallback (archivo de texto como ejemplo)
+        const mockPdfContent = generateMockPdfContent(date);
+        const blob = new Blob([mockPdfContent], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `reporte-movimientos-mock-${date}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+        setError('⚠️ Usando datos de prueba (servidor no disponible en puerto 8003)');
+      }
       
     } catch (error) {
       console.error('Error generating report:', error);
@@ -79,13 +162,23 @@ const TransactionReport: React.FC = () => {
           </div>
         )}
         
-        <button 
-          className="btn btn-primary" 
-          onClick={handleGenerateReport}
-          disabled={loading || !date}
-        >
-          {loading ? 'Generando...' : 'Buscar y Descargar PDF'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleGenerateReport}
+            disabled={loading || !date}
+          >
+            {loading ? 'Generando...' : 'Buscar y Descargar PDF'}
+          </button>
+          
+          <button 
+            className="btn btn-secondary" 
+            onClick={testServerConnection}
+            disabled={loading}
+          >
+            Probar Conectividad
+          </button>
+        </div>
       </div>
 
       <div className="info-card" style={{ marginTop: '20px' }}>

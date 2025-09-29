@@ -46,12 +46,12 @@ export class ClientListComponent implements OnInit, OnDestroy {
     this.clientUseCases.getAllClients()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (clients) => {
+        next: (clients: Client[]) => {
           this.clients = clients;
           this.filteredClients = clients;
           this.loading = false;
         },
-        error: (error) => {
+        error: (error: any) => {
           this.error = 'Error al cargar los clientes: ' + error.message;
           this.loading = false;
         }
@@ -103,7 +103,7 @@ export class ClientListComponent implements OnInit, OnDestroy {
         next: () => {
           this.loadClients();
         },
-        error: (error) => {
+        error: (error: any) => {
           this.error = 'Error al activar el cliente: ' + error.message;
         }
       });
@@ -123,7 +123,7 @@ export class ClientListComponent implements OnInit, OnDestroy {
         next: () => {
           this.loadClients();
         },
-        error: (error) => {
+        error: (error: any) => {
           this.error = 'Error al desactivar el cliente: ' + error.message;
         }
       });
@@ -143,7 +143,7 @@ export class ClientListComponent implements OnInit, OnDestroy {
         next: () => {
           this.loadClients();
         },
-        error: (error) => {
+        error: (error: any) => {
           this.error = 'Error al eliminar el cliente: ' + error.message;
         }
       });

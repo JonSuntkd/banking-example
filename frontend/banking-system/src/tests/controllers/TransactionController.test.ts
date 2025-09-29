@@ -11,6 +11,7 @@ describe('TransactionController', () => {
       getAll: jest.fn(),
       create: jest.fn(),
       getReport: jest.fn(),
+      getReportByClientAndDateRange: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };
@@ -71,6 +72,33 @@ describe('TransactionController', () => {
       const result = await controller.getTransactionReport(date);
       expect(result).toEqual(mockTransactions);
       expect(mockRepository.getReport).toHaveBeenCalledWith(date);
+    });
+  });
+
+  describe('getTransactionReportByClientAndDateRange', () => {
+    it('should return transactions report by client and date range', async () => {
+      const startDate = '2024-03-01';
+      const endDate = '2024-03-31';
+      const clientName = 'Jose Lema';
+      const mockReportResponse = {
+        reportData: [
+          {
+            id: 1,
+            accountNumber: '123456',
+            transactionType: 'Deposito',
+            amount: 1000,
+            date: '2024-03-25',
+            clientName: 'Jose Lema',
+            balance: 2000,
+          },
+        ],
+        pdfBase64: 'base64EncodedPDFString',
+      };
+      mockRepository.getReportByClientAndDateRange.mockResolvedValue(mockReportResponse);
+
+      const result = await controller.getTransactionReportByClientAndDateRange(startDate, endDate, clientName);
+      expect(result).toEqual(mockReportResponse);
+      expect(mockRepository.getReportByClientAndDateRange).toHaveBeenCalledWith(startDate, endDate, clientName);
     });
   });
 });

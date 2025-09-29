@@ -96,13 +96,45 @@ const TransactionReport: React.FC = () => {
     }
 
     try {
-      const byteCharacters = atob(pdfBase64);
+      console.log('Base64 original length:', pdfBase64.length);
+      console.log('Base64 primeros 50 caracteres:', pdfBase64.substring(0, 50));
+      
+      // Limpiar el base64 - remover posibles prefijos y espacios
+      let cleanBase64 = pdfBase64.trim();
+      
+      // Remover prefijo data:application/pdf;base64, si existe
+      if (cleanBase64.startsWith('data:application/pdf;base64,')) {
+        cleanBase64 = cleanBase64.substring('data:application/pdf;base64,'.length);
+      }
+      
+      // Validar que sea base64 válido
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+        throw new Error('Formato base64 inválido');
+      }
+      
+      console.log('Base64 limpio length:', cleanBase64.length);
+      
+      // Convertir base64 a binary
+      const byteCharacters = atob(cleanBase64);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
+      
+      console.log('Tamaño del array de bytes:', byteArray.length);
+      
+      // Verificar que comience con la cabecera PDF
+      const pdfHeader = new TextDecoder().decode(byteArray.slice(0, 4));
+      console.log('PDF Header:', pdfHeader);
+      
+      if (!pdfHeader.startsWith('%PDF')) {
+        console.warn('El archivo no parece ser un PDF válido');
+        // Intentar de todos modos
+      }
+      
       const blob = new Blob([byteArray], { type: 'application/pdf' });
+      console.log('Blob creado, tamaño:', blob.size);
       
       const url = window.URL.createObjectURL(blob);
       
@@ -129,12 +161,14 @@ const TransactionReport: React.FC = () => {
         setTimeout(() => {
           window.URL.revokeObjectURL(url);
         }, 60000); // 1 minuto
-      }, 100);
+      }, 500); // Aumentar el delay
       
       setError('✅ PDF descargado exitosamente y vista previa abierta');
     } catch (error) {
-      console.error('Error downloading PDF:', error);
-      setError('❌ Error al descargar el PDF');
+      console.error('Error detallado al procesar PDF:', error);
+      console.error('Base64 que causó el error:', pdfBase64.substring(0, 100) + '...');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setError(`❌ Error al procesar el PDF: ${errorMessage}`);
     }
   };
 
@@ -145,15 +179,55 @@ const TransactionReport: React.FC = () => {
     }
 
     try {
-      const byteCharacters = atob(pdfBase64);
+      console.log('=== DIAGNÓSTICO PDF PREVIEW ===');
+      console.log('Base64 original length:', pdfBase64.length);
+      console.log('Base64 primeros 100 caracteres:', pdfBase64.substring(0, 100));
+      console.log('Base64 últimos 20 caracteres:', pdfBase64.slice(-20));
+      
+      // Limpiar el base64
+      let cleanBase64 = pdfBase64.trim();
+      
+      // Remover prefijo data:application/pdf;base64, si existe
+      if (cleanBase64.startsWith('data:application/pdf;base64,')) {
+        cleanBase64 = cleanBase64.substring('data:application/pdf;base64,'.length);
+        console.log('Prefijo data: removido');
+      }
+      
+      // Validar que sea base64 válido
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+        console.error('Base64 inválido:', cleanBase64.substring(0, 50));
+        throw new Error('Formato base64 inválido');
+      }
+      
+      console.log('Base64 limpio length:', cleanBase64.length);
+      console.log('Base64 limpio primeros 50:', cleanBase64.substring(0, 50));
+      
+      // Convertir base64 a binary
+      const byteCharacters = atob(cleanBase64);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
+      
+      console.log('Bytes array length:', byteArray.length);
+      console.log('Primeros 20 bytes:', Array.from(byteArray.slice(0, 20)));
+      
+      // Verificar cabecera PDF
+      const pdfHeader = new TextDecoder().decode(byteArray.slice(0, 8));
+      console.log('PDF Header detectado:', pdfHeader);
+      console.log('Es PDF válido:', pdfHeader.startsWith('%PDF'));
+      
+      if (!pdfHeader.startsWith('%PDF')) {
+        throw new Error('El archivo no tiene una cabecera PDF válida');
+      }
+      
       const blob = new Blob([byteArray], { type: 'application/pdf' });
       
+      console.log('Blob creado exitosamente, tamaño:', blob.size);
+      
       const url = window.URL.createObjectURL(blob);
+      console.log('URL del blob:', url);
       
       // Solo abrir vista previa sin descargar
       const previewWindow = window.open(url, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
@@ -170,8 +244,9 @@ const TransactionReport: React.FC = () => {
         window.URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error('Error previewing PDF:', error);
-      setError('❌ Error al abrir la vista previa del PDF');
+      console.error('Error detallado en preview:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setError(`❌ Error en vista previa: ${errorMessage}`);
     }
   };
 

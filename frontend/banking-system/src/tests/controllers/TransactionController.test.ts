@@ -101,5 +101,47 @@ describe('TransactionController', () => {
       expect(result).toEqual(mockReportResponse);
       expect(mockRepository.getReportByClientAndDateRange).toHaveBeenCalledWith(startDate, endDate, clientName);
     });
+
+    it('should handle empty report data', async () => {
+      const startDate = '2024-03-01';
+      const endDate = '2024-03-31';
+      const clientName = 'Cliente Inexistente';
+      const mockReportResponse = {
+        reportData: [],
+        pdfBase64: '',
+      };
+      mockRepository.getReportByClientAndDateRange.mockResolvedValue(mockReportResponse);
+
+      const result = await controller.getTransactionReportByClientAndDateRange(startDate, endDate, clientName);
+      expect(result).toEqual(mockReportResponse);
+      expect(result.reportData).toHaveLength(0);
+      expect(result.pdfBase64).toBe('');
+    });
+
+    it('should handle repository errors', async () => {
+      const startDate = '2024-03-01';
+      const endDate = '2024-03-31';
+      const clientName = 'Jose Lema';
+      const errorMessage = 'Database connection failed';
+      mockRepository.getReportByClientAndDateRange.mockRejectedValue(new Error(errorMessage));
+
+      await expect(controller.getTransactionReportByClientAndDateRange(startDate, endDate, clientName))
+        .rejects.toThrow(errorMessage);
+    });
+
+    it('should handle invalid date ranges', async () => {
+      const startDate = '2024-03-31';
+      const endDate = '2024-03-01'; // Fecha de fin antes que inicio
+      const clientName = 'Jose Lema';
+      
+      // El repositorio debería manejar esto, pero podríamos añadir validación
+      mockRepository.getReportByClientAndDateRange.mockResolvedValue({
+        reportData: [],
+        pdfBase64: '',
+      });
+
+      const result = await controller.getTransactionReportByClientAndDateRange(startDate, endDate, clientName);
+      expect(mockRepository.getReportByClientAndDateRange).toHaveBeenCalledWith(startDate, endDate, clientName);
+    });
   });
 });

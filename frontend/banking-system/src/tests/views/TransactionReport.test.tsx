@@ -28,11 +28,36 @@ Object.defineProperty(window.URL, 'revokeObjectURL', {
   value: mockRevokeObjectURL,
 });
 
-// Mock atob
+// Mock atob para simular decodificación base64
 Object.defineProperty(window, 'atob', {
   writable: true,
-  value: jest.fn((str) => str),
+  value: jest.fn((str) => {
+    // Simular decodificación PDF válida
+    if (str.includes('mockBase64String') || str.includes('JVBERi')) {
+      return '%PDF-1.4\n%äüöó\n2 0 obj\n<<\n/Type /Catalog\n/Pages 3 0 R\n>>\nendobj';
+    }
+    throw new Error('Invalid character in base64 string');
+  }),
 });
+
+// Mock console methods para evitar logs durante tests
+global.console = {
+  ...console,
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+};
+
+// Mock TextDecoder para validación de cabecera PDF
+global.TextDecoder = jest.fn().mockImplementation(() => ({
+  decode: jest.fn((bytes) => {
+    // Simular cabecera PDF válida
+    if (bytes && bytes.length >= 4) {
+      return '%PDF';
+    }
+    return '';
+  }),
+}));
 
 describe('TransactionReport', () => {
   beforeEach(() => {
@@ -123,7 +148,7 @@ describe('TransactionReport', () => {
     );
   });
 
-  it('should handle download PDF functionality', async () => {
+  it('should handle download PDF functionality with validation', async () => {
     mockedAxios.get.mockResolvedValueOnce({ data: mockReportData });
     
     render(<TransactionReport />);
@@ -148,16 +173,18 @@ describe('TransactionReport', () => {
     fireEvent.click(downloadButton);
 
     await waitFor(() => {
+      expect(window.atob).toHaveBeenCalledWith('mockBase64String');
       expect(mockCreateObjectURL).toHaveBeenCalled();
       expect(mockWindowOpen).toHaveBeenCalledWith(
         'blob:mock-url',
         '_blank',
         'width=800,height=600,scrollbars=yes,resizable=yes'
       );
+      expect(screen.getByText(/✅ PDF descargado exitosamente y vista previa abierta/)).toBeInTheDocument();
     });
   });
 
-  it('should handle preview PDF functionality', async () => {
+  it('should handle preview PDF functionality with validation', async () => {
     mockedAxios.get.mockResolvedValueOnce({ data: mockReportData });
     
     render(<TransactionReport />);
@@ -182,12 +209,14 @@ describe('TransactionReport', () => {
     fireEvent.click(previewButton);
 
     await waitFor(() => {
+      expect(window.atob).toHaveBeenCalledWith('mockBase64String');
       expect(mockCreateObjectURL).toHaveBeenCalled();
       expect(mockWindowOpen).toHaveBeenCalledWith(
         'blob:mock-url',
         '_blank',
         'width=900,height=700,scrollbars=yes,resizable=yes'
       );
+      expect(screen.getByText(/✅ Vista previa abierta exitosamente/)).toBeInTheDocument();
     });
   });
 
@@ -263,7 +292,149 @@ describe('TransactionReport', () => {
     fireEvent.click(downloadButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/no hay pdf disponible para descargar/i)).toBeInTheDocument();
+      expect(screen.getByText(/❌ No hay PDF disponible para descargar/)).toBeInTheDocument();
+    });
+  });
+
+  it('should handle invalid base64 format in PDF download', async () => {
+    mockedAxios.get.mockResolvedValueOnce({ 
+      data: { 
+        reportData: mockReportData.reportData, 
+        pdfBase64: 'invalid-base64-format!!!' 
+      }
+    });
+    
+    // Mock atob to throw error for invalid base64
+    (window.atob as jest.Mock).mockImplementation((str) => {
+      if (str.includes('invalid')) {
+        throw new Error('Invalid character in base64 string');
+      }
+      return '%PDF-1.4\n%äüöó\n2 0 obj\n<<\n/Type /Catalog\n/Pages 3 0 R\n>>\nendobj';
+    });
+    
+    render(<TransactionReport />);
+    
+    const startDateInput = screen.getByLabelText('Fecha de Inicio:');
+    const endDateInput = screen.getByLabelText('Fecha de Fin:');
+    const clientNameInput = screen.getByLabelText('Nombre del Cliente:');
+    const searchButton = screen.getByRole('button', { name: /buscar reporte/i });
+
+    fireEvent.change(startDateInput, { target: { value: '2025-09-01' } });
+    fireEvent.change(endDateInput, { target: { value: '2025-09-29' } });
+    fireEvent.change(clientNameInput, { target: { value: 'Jose Lema' } });
+    fireEvent.click(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Resultados del Reporte')).toBeInTheDocument();
+    });
+
+    // Try to download with invalid base64
+    const downloadButton = screen.getByRole('button', { name: /📄 descargar pdf/i });
+    fireEvent.click(downloadButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/❌ Error al procesar el PDF: Formato base64 inválido/)).toBeInTheDocument();
+    });
+  });
+
+  it('should handle base64 with data prefix', async () => {
+    const base64WithPrefix = 'data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOzCjIgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDMgMCBSCj4+CmVuZG9iago=';
+    
+    mockedAxios.get.mockResolvedValueOnce({ 
+      data: { 
+        reportData: mockReportData.reportData, 
+        pdfBase64: base64WithPrefix 
+      }
+    });
+    
+    render(<TransactionReport />);
+    
+    const startDateInput = screen.getByLabelText('Fecha de Inicio:');
+    const endDateInput = screen.getByLabelText('Fecha de Fin:');
+    const clientNameInput = screen.getByLabelText('Nombre del Cliente:');
+    const searchButton = screen.getByRole('button', { name: /buscar reporte/i });
+
+    fireEvent.change(startDateInput, { target: { value: '2025-09-01' } });
+    fireEvent.change(endDateInput, { target: { value: '2025-09-29' } });
+    fireEvent.change(clientNameInput, { target: { value: 'Jose Lema' } });
+    fireEvent.click(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Resultados del Reporte')).toBeInTheDocument();
+    });
+
+    // Download PDF with prefix
+    const downloadButton = screen.getByRole('button', { name: /📄 descargar pdf/i });
+    fireEvent.click(downloadButton);
+
+    await waitFor(() => {
+      // Should call atob with cleaned base64 (without prefix)
+      expect(window.atob).toHaveBeenCalledWith('JVBERi0xLjQKJcOkw7zDtsOzCjIgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDMgMCBSCj4+CmVuZG9iago=');
+      expect(screen.getByText(/✅ PDF descargado exitosamente y vista previa abierta/)).toBeInTheDocument();
+    });
+  });
+
+  it('should handle popup blocked scenario', async () => {
+    mockedAxios.get.mockResolvedValueOnce({ data: mockReportData });
+    
+    // Mock window.open to return null (popup blocked)
+    mockWindowOpen.mockReturnValue(null);
+    
+    render(<TransactionReport />);
+    
+    const startDateInput = screen.getByLabelText('Fecha de Inicio:');
+    const endDateInput = screen.getByLabelText('Fecha de Fin:');
+    const clientNameInput = screen.getByLabelText('Nombre del Cliente:');
+    const searchButton = screen.getByRole('button', { name: /buscar reporte/i });
+
+    fireEvent.change(startDateInput, { target: { value: '2025-09-01' } });
+    fireEvent.change(endDateInput, { target: { value: '2025-09-29' } });
+    fireEvent.change(clientNameInput, { target: { value: 'Jose Lema' } });
+    fireEvent.click(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Resultados del Reporte')).toBeInTheDocument();
+    });
+
+    // Try to preview PDF with popup blocked
+    const previewButton = screen.getByRole('button', { name: /👁️ vista previa/i });
+    fireEvent.click(previewButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/❌ No se pudo abrir la vista previa \(popup bloqueado\)/)).toBeInTheDocument();
+    });
+  });
+
+  it('should handle PDF without valid header', async () => {
+    mockedAxios.get.mockResolvedValueOnce({ data: mockReportData });
+    
+    // Mock TextDecoder to return invalid PDF header
+    (global.TextDecoder as jest.Mock).mockImplementation(() => ({
+      decode: jest.fn(() => 'INVALID'),
+    }));
+    
+    render(<TransactionReport />);
+    
+    const startDateInput = screen.getByLabelText('Fecha de Inicio:');
+    const endDateInput = screen.getByLabelText('Fecha de Fin:');
+    const clientNameInput = screen.getByLabelText('Nombre del Cliente:');
+    const searchButton = screen.getByRole('button', { name: /buscar reporte/i });
+
+    fireEvent.change(startDateInput, { target: { value: '2025-09-01' } });
+    fireEvent.change(endDateInput, { target: { value: '2025-09-29' } });
+    fireEvent.change(clientNameInput, { target: { value: 'Jose Lema' } });
+    fireEvent.click(searchButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Resultados del Reporte')).toBeInTheDocument();
+    });
+
+    // Try to preview PDF with invalid header
+    const previewButton = screen.getByRole('button', { name: /👁️ vista previa/i });
+    fireEvent.click(previewButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/❌ Error en vista previa: El archivo no tiene una cabecera PDF válida/)).toBeInTheDocument();
     });
   });
 });

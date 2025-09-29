@@ -13,23 +13,41 @@ interface ClientFormProps {
 
 const ClientForm: React.FC<ClientFormProps> = ({ client, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState<Client>({
-    fullName: client?.fullName || '',
-    address: client?.address || '',
-    phone: client?.phone || '',
+    fullName: client?.person?.fullName || '',
+    address: client?.person?.address || '',
+    phone: client?.person?.phone || '',
     password: client?.password || '',
     status: client?.status ?? true
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Crear el objeto en el formato que espera la API
+    const clientData: Client = {
+      id: client?.id,
+      person: {
+        fullName: formData.fullName,
+        address: formData.address,
+        phone: formData.phone,
+        gender: client?.person?.gender || '',
+        age: client?.person?.age || 0,
+        identification: client?.person?.identification || ''
+      },
+      password: formData.password,
+      status: formData.status,
+      fullName: formData.fullName, // Mantener para compatibilidad
+      address: formData.address,
+      phone: formData.phone
+    };
+    onSubmit(clientData);
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="form-group">
-        <label>Nombre completo:</label>
+        <label htmlFor="fullName">Nombre completo:</label>
         <input
+          id="fullName"
           type="text"
           className="form-control"
           value={formData.fullName}
@@ -38,8 +56,9 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, onSubmit, onCancel }) =
         />
       </div>
       <div className="form-group">
-        <label>Dirección:</label>
+        <label htmlFor="address">Dirección:</label>
         <input
+          id="address"
           type="text"
           className="form-control"
           value={formData.address}
@@ -48,8 +67,9 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, onSubmit, onCancel }) =
         />
       </div>
       <div className="form-group">
-        <label>Teléfono:</label>
+        <label htmlFor="phone">Teléfono:</label>
         <input
+          id="phone"
           type="text"
           className="form-control"
           value={formData.phone}
@@ -58,8 +78,9 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, onSubmit, onCancel }) =
         />
       </div>
       <div className="form-group">
-        <label>Contraseña:</label>
+        <label htmlFor="password">Contraseña:</label>
         <input
+          id="password"
           type="password"
           className="form-control"
           value={formData.password}
@@ -95,6 +116,13 @@ const ClientList = () => {
     try {
       setLoading(true);
       const data = await controller.getAllClients();
+      console.log('Datos recibidos de la API:', data);
+      console.log('Tipo de datos:', typeof data);
+      console.log('Es array:', Array.isArray(data));
+      if (data.length > 0) {
+        console.log('Primer elemento:', data[0]);
+        console.log('Propiedades del primer elemento:', Object.keys(data[0]));
+      }
       setClients(data);
       setError(null);
     } catch (error) {
@@ -194,9 +222,9 @@ const ClientList = () => {
             {clients.map((client) => (
               <tr key={client.id}>
                 <td>{client.id}</td>
-                <td>{client.fullName}</td>
-                <td>{client.address}</td>
-                <td>{client.phone}</td>
+                <td>{client.person?.fullName || 'N/A'}</td>
+                <td>{client.person?.address || 'N/A'}</td>
+                <td>{client.person?.phone || 'N/A'}</td>
                 <td>
                   <span className={`status ${client.status ? 'active' : 'inactive'}`}>
                     {client.status ? 'Activo' : 'Inactivo'}

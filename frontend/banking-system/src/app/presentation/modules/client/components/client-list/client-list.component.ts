@@ -1,8 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
-import { ClientUseCases } from '@application/use-cases/client.use-cases';
-import { Client } from '@domain/entities/client.entity';
+import { ClientUseCases } from '../../../../application/use-cases/client-simple.use-cases';
+import { Client } from '../../../../domain/entities/client.entity';
 
 /**
  * Client List Component following MVC pattern

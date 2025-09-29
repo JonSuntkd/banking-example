@@ -7,18 +7,19 @@ const routes: Routes = [
     path: 'clientes',
     loadChildren: () => import('./presentation/modules/client/client.module').then(m => m.ClientModule)
   },
-  {
-    path: 'cuentas',
-    loadChildren: () => import('./presentation/modules/account/account.module').then(m => m.AccountModule)
-  },
-  {
-    path: 'movimientos',
-    loadChildren: () => import('./presentation/modules/transaction/transaction.module').then(m => m.TransactionModule)
-  },
-  {
-    path: 'reportes',
-    loadChildren: () => import('./presentation/modules/report/report.module').then(m => m.ReportModule)
-  },
+  // TODO: Uncomment when modules are created
+  // {
+  //   path: 'cuentas',
+  //   loadChildren: () => import('./presentation/modules/account/account.module').then(m => m.AccountModule)
+  // },
+  // {
+  //   path: 'movimientos',
+  //   loadChildren: () => import('./presentation/modules/transaction/transaction.module').then(m => m.TransactionModule)
+  // },
+  // {
+  //   path: 'reportes',
+  //   loadChildren: () => import('./presentation/modules/report/report.module').then(m => m.ReportModule)
+  // },
   { path: '**', redirectTo: '/clientes' }
 ];
 

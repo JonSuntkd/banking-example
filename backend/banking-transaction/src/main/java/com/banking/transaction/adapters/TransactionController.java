@@ -5,8 +5,11 @@ import com.banking.transaction.application.dto.TransactionRequest;
 import com.banking.transaction.application.dto.TransactionResponse;
 import com.banking.transaction.application.dto.TransactionReportDTO;
 import com.banking.transaction.application.dto.TransactionListResponse;
+import com.banking.transaction.application.dto.AccountStatementReportResponse;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -34,6 +37,27 @@ public class TransactionController {
             throw new RuntimeException("El parámetro 'date' es requerido");
         }
         return ResponseEntity.ok(transactionService.getTransactionReport(date));
+    }
+
+    @GetMapping("/reports-report")
+    public ResponseEntity<AccountStatementReportResponse> getAccountStatementReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam String clientName) {
+        
+        if (startDate == null || endDate == null) {
+            throw new RuntimeException("Los parámetros 'startDate' y 'endDate' son requeridos");
+        }
+        
+        if (clientName == null || clientName.trim().isEmpty()) {
+            throw new RuntimeException("El parámetro 'clientName' es requerido");
+        }
+        
+        if (startDate.isAfter(endDate)) {
+            throw new RuntimeException("La fecha de inicio no puede ser posterior a la fecha de fin");
+        }
+        
+        return ResponseEntity.ok(transactionService.getAccountStatementReport(startDate, endDate, clientName.trim()));
     }
 
     @PutMapping("/{id}")

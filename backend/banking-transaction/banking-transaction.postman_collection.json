@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "088faf23-8cab-4cc3-bde2-9a62f9b3b60b",
+		"_postman_id": "a5bcd519-f6a6-4024-86f0-c06b0471cf55",
 		"name": "banking-transaction",
 		"description": "Colección para probar el microservicio de transacciones bancarias",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -90,7 +90,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:8003/transaction/report?date=28/09/2025",
+					"raw": "http://localhost:8003/transaction/report?date=10/2/2022",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -103,7 +103,7 @@
 					"query": [
 						{
 							"key": "date",
-							"value": "28/09/2025"
+							"value": "10/2/2022"
 						}
 					]
 				}
@@ -116,7 +116,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:8003/transaction/reports-report?startDate=2025-09-01&endDate=2025-09-28&clientName=Jose Lema",
+					"raw": "http://localhost:8003/transaction/reports-report?startDate=2022-02-01&endDate=2022-02-28&clientName=Marianela Montalvo",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -129,22 +129,60 @@
 					"query": [
 						{
 							"key": "startDate",
-							"value": "2025-09-01",
+							"value": "2022-02-01",
 							"description": "Fecha de inicio del rango (formato: YYYY-MM-DD)"
 						},
 						{
 							"key": "endDate",
-							"value": "2025-09-28",
+							"value": "2022-02-28",
 							"description": "Fecha de fin del rango (formato: YYYY-MM-DD)"
 						},
 						{
 							"key": "clientName",
-							"value": "Jose Lema",
+							"value": "Marianela Montalvo",
 							"description": "Nombre completo del cliente"
 						}
 					]
 				},
 				"description": "Genera un reporte de estado de cuenta para un cliente específico en un rango de fechas. Retorna los datos en formato JSON y un PDF en base64."
+			},
+			"response": []
+		},
+		{
+			"name": "Reporte Estado de Cuenta - Caso Sin Movimientos",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8003/transaction/reports-report?startDate=2025-01-01&endDate=2025-01-31&clientName=Cliente Inexistente",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction",
+						"reports-report"
+					],
+					"query": [
+						{
+							"key": "startDate",
+							"value": "2025-01-01",
+							"description": "Fecha de inicio del rango (formato: YYYY-MM-DD)"
+						},
+						{
+							"key": "endDate",
+							"value": "2025-01-31",
+							"description": "Fecha de fin del rango (formato: YYYY-MM-DD)"
+						},
+						{
+							"key": "clientName",
+							"value": "Cliente Inexistente",
+							"description": "Nombre de cliente que no existe o sin movimientos"
+						}
+					]
+				},
+				"description": "Ejemplo para probar el caso de error cuando no existen movimientos para el cliente en las fechas especificadas."
 			},
 			"response": []
 		},

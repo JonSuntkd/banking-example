@@ -4,10 +4,14 @@ import com.banking.transaction.application.dto.TransactionRequest;
 import com.banking.transaction.application.dto.TransactionResponse;
 import com.banking.transaction.application.dto.TransactionReportDTO;
 import com.banking.transaction.application.dto.TransactionListResponse;
+import com.banking.transaction.application.dto.AccountStatementDTO;
+import com.banking.transaction.application.dto.AccountStatementReportResponse;
 import com.banking.transaction.infrastructure.AccountEntity;
 import com.banking.transaction.infrastructure.AccountRepository;
 import com.banking.transaction.infrastructure.AccountTransactionEntity;
 import com.banking.transaction.infrastructure.AccountTransactionRepository;
+import com.banking.transaction.infrastructure.ClientEntity;
+import com.banking.transaction.infrastructure.ClientRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,16 +20,20 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.stream.Collectors;
 
 @Service
 public class TransactionServiceImpl implements TransactionService {
     private final AccountRepository accountRepository;
     private final AccountTransactionRepository transactionRepository;
+    private final ClientRepository clientRepository;
 
-    public TransactionServiceImpl(AccountRepository accountRepository, AccountTransactionRepository transactionRepository) {
+    public TransactionServiceImpl(AccountRepository accountRepository, AccountTransactionRepository transactionRepository, ClientRepository clientRepository) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
+        this.clientRepository = clientRepository;
     }
 
     @Override
@@ -213,5 +221,84 @@ public class TransactionServiceImpl implements TransactionService {
         response.setBalance(entity.getBalance());
         
         return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountStatementReportResponse getAccountStatementReport(LocalDate startDate, LocalDate endDate, String clientName) {
+        // Buscar el cliente por nombre
+        ClientEntity client = clientRepository.findByClientName(clientName)
+                .orElseThrow(() -> new RuntimeException("No existe cliente con el nombre: " + clientName));
+
+        // Obtener todas las cuentas del cliente
+        List<AccountEntity> clientAccounts = accountRepository.findByClientId(client.getClientId());
+
+        if (clientAccounts.isEmpty()) {
+            throw new RuntimeException("El cliente " + clientName + " no tiene cuentas asociadas");
+        }
+
+        List<AccountStatementDTO> reportItems = new ArrayList<>();
+        boolean hasMovements = false;
+
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        for (AccountEntity account : clientAccounts) {
+            // Obtener transacciones en el rango de fechas para esta cuenta
+            List<AccountTransactionEntity> transactions = transactionRepository
+                    .findByAccountIdAndDateRange(account.getAccountId(), startDate, endDate);
+
+            if (!transactions.isEmpty()) {
+                hasMovements = true;
+                
+                // Crear un registro por cada transacción
+                for (AccountTransactionEntity transaction : transactions) {
+                    AccountStatementDTO reportItem = new AccountStatementDTO();
+                    reportItem.setFecha(transaction.getTransactionDate().toLocalDate().format(dateFormatter));
+                    reportItem.setCliente(client.getPerson().getFullName());
+                    reportItem.setNumeroCuenta(account.getAccountNumber());
+                    reportItem.setTipo(account.getAccountType());
+                    reportItem.setSaldoInicial(account.getInitialBalance());
+                    reportItem.setEstado(account.getStatus());
+                    reportItem.setMovimiento(transaction.getAmount());
+                    reportItem.setSaldoDisponible(transaction.getBalance());
+
+                    reportItems.add(reportItem);
+                }
+            }
+        }
+
+        // Validar si hay movimientos en las fechas especificadas
+        if (!hasMovements) {
+            throw new RuntimeException("No existen movimientos para el cliente " + clientName + 
+                                     " en el rango de fechas especificado (" + 
+                                     startDate.format(dateFormatter) + " - " + endDate.format(dateFormatter) + ")");
+        }
+
+        // Generar PDF en base64 (simulado por ahora)
+        String pdfBase64 = generatePdfReport(reportItems);
+
+        return new AccountStatementReportResponse(reportItems, pdfBase64);
+    }
+
+    private String generatePdfReport(List<AccountStatementDTO> reportItems) {
+        // Simulación básica de generación de PDF
+        // En una implementación real, aquí usaríamos iText, Apache PDFBox, o similar
+        StringBuilder pdfContent = new StringBuilder();
+        pdfContent.append("REPORTE DE ESTADO DE CUENTA\\n\\n");
+        
+        for (AccountStatementDTO item : reportItems) {
+            pdfContent.append("Cliente: ").append(item.getCliente()).append("\\n");
+            pdfContent.append("Fecha: ").append(item.getFecha()).append("\\n");
+            pdfContent.append("Número Cuenta: ").append(item.getNumeroCuenta()).append("\\n");
+            pdfContent.append("Tipo: ").append(item.getTipo()).append("\\n");
+            pdfContent.append("Saldo Inicial: ").append(item.getSaldoInicial()).append("\\n");
+            pdfContent.append("Estado: ").append(item.getEstado()).append("\\n");
+            pdfContent.append("Movimiento: ").append(item.getMovimiento()).append("\\n");
+            pdfContent.append("Saldo Disponible: ").append(item.getSaldoDisponible()).append("\\n");
+            pdfContent.append("\\n----------------------------\\n\\n");
+        }
+        
+        // Convertir a Base64 (simulado)
+        return Base64.getEncoder().encodeToString(pdfContent.toString().getBytes());
     }
 }

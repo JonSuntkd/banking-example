@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import '../styles/Views.css';
+import jsPDF from 'jspdf';
 
 interface ReportData {
   fecha: string;
@@ -23,7 +24,98 @@ const TransactionReport: React.FC = () => {
   const [endDate, setEndDate] = useState<string>('');
   const [clientName, setClientName] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string>('');
+
+  // Función para convertir texto plano a PDF
+  const convertTextToPDF = (textContent: string, fileName: string): Blob => {
+    const doc = new jsPDF();
+    
+    // Configurar la fuente y tamaño
+    doc.setFontSize(12);
+    
+    // Título del documento
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REPORTE DE ESTADO DE CUENTA', 105, 20, { align: 'center' });
+    
+    // Línea separadora
+    doc.setLineWidth(0.5);
+    doc.line(20, 25, 190, 25);
+    
+    // Información del cliente y fecha
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    let yPosition = 35;
+    
+    // Procesar el contenido línea por línea
+    const lines = textContent.split('\\n');
+    const pageHeight = doc.internal.pageSize.height;
+    const marginBottom = 20;
+    
+    lines.forEach((line) => {
+      // Limpiar caracteres de escape y espacios extra
+      const cleanLine = line.replace(/\\n/g, '').replace(/\\t/g, '    ').trim();
+      
+      if (cleanLine) {
+        // Verificar si necesitamos una nueva página
+        if (yPosition > pageHeight - marginBottom) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        // Ajustar el estilo según el contenido
+        if (cleanLine.includes('Cliente:') || cleanLine.includes('Fecha:')) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+        } else if (cleanLine.includes('Número de Cuenta:') || cleanLine.includes('Tipo:')) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+        } else if (cleanLine.includes('---') || cleanLine === '') {
+          // Líneas separadoras o vacías
+          if (cleanLine.includes('---')) {
+            doc.setLineWidth(0.3);
+            doc.line(20, yPosition, 190, yPosition);
+          }
+          yPosition += 5;
+          return;
+        } else {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+        }
+        
+        // Dividir líneas largas
+        const splitLines = doc.splitTextToSize(cleanLine, 170);
+        
+        if (Array.isArray(splitLines)) {
+          splitLines.forEach((splitLine) => {
+            if (yPosition > pageHeight - marginBottom) {
+              doc.addPage();
+              yPosition = 20;
+            }
+            doc.text(splitLine, 20, yPosition);
+            yPosition += 6;
+          });
+        } else {
+          doc.text(splitLines, 20, yPosition);
+          yPosition += 6;
+        }
+      }
+    });
+    
+    // Pie de página con fecha de generación
+    const totalPages = doc.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`Generado el: ${new Date().toLocaleString('es-ES')}`, 20, pageHeight - 10);
+      doc.text(`Página ${i} de ${totalPages}`, 190, pageHeight - 10, { align: 'right' });
+    }
+    
+    // Retornar el PDF como blob
+    return doc.output('blob');
+  };
   const [reportData, setReportData] = useState<ReportData[]>([]);
   const [pdfBase64, setPdfBase64] = useState<string>('');
   const [showResults, setShowResults] = useState<boolean>(false);
@@ -43,7 +135,7 @@ const TransactionReport: React.FC = () => {
 
     try {
       setLoading(true);
-      setError(null);
+      setError('');
       setShowResults(false);
       
       const reportUrl = `/transaction/reports-report?startDate=${startDate}&endDate=${endDate}&clientName=${encodeURIComponent(clientName)}`;
@@ -135,60 +227,40 @@ const TransactionReport: React.FC = () => {
         const fullContent = new TextDecoder().decode(byteArray);
         console.log('Contenido completo:', fullContent);
         
-        // Si parece ser un reporte de texto, mostrarlo en lugar de generar PDF
+        // Si parece ser un reporte de texto, convertirlo a PDF
         if (fullContent.includes('REPORTE') && fullContent.includes('ESTADO DE CUENTA')) {
-          console.log('🔍 Detectado reporte en formato texto - creando versión descargable');
+          console.log('🔍 Detectado reporte en formato texto - convirtiendo a PDF');
           
-          // Crear un archivo de texto descargable
-          const textBlob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' });
-          const textUrl = window.URL.createObjectURL(textBlob);
+          // Convertir el texto a PDF
+          const pdfBlob = convertTextToPDF(fullContent, `estado-cuenta-${clientName.replace(/\s+/g, '-')}-${startDate}-${endDate}`);
+          const pdfUrl = window.URL.createObjectURL(pdfBlob);
           
-          // Descargar como archivo de texto
+          // Descargar el PDF generado
           const link = document.createElement('a');
-          link.href = textUrl;
-          link.download = `reporte-texto-${clientName.replace(/\s+/g, '-')}-${startDate}-${endDate}.txt`;
+          link.href = pdfUrl;
+          link.download = `estado-cuenta-${clientName.replace(/\s+/g, '-')}-${startDate}-${endDate}.pdf`;
           document.body.appendChild(link);
           link.click();
           link.remove();
           
-          // Mostrar vista previa del contenido
+          // Abrir vista previa en nueva ventana después de la descarga
           setTimeout(() => {
-            const reportWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-            if (reportWindow) {
-              reportWindow.document.write(`
-                <html>
-                  <head>
-                    <title>Reporte de Estado de Cuenta - ${clientName}</title>
-                    <style>
-                      body { font-family: 'Courier New', monospace; margin: 20px; background-color: #f5f5f5; }
-                      .report-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                      h1 { color: #333; text-align: center; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
-                      .content { white-space: pre-wrap; line-height: 1.6; }
-                      .note { background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin: 20px 0; }
-                    </style>
-                  </head>
-                  <body>
-                    <div class="report-container">
-                      <h1>📊 Reporte de Estado de Cuenta</h1>
-                      <div class="note">
-                        <strong>ℹ️ Nota:</strong> El backend devolvió el reporte en formato texto. 
-                        Archivo descargado como .txt. Para generar un PDF real, el backend debe ser actualizado.
-                      </div>
-                      <div class="content">${fullContent}</div>
-                    </div>
-                  </body>
-                </html>
-              `);
-              reportWindow.document.close();
+            const previewWindow = window.open(pdfUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+            if (previewWindow) {
+              previewWindow.document.title = `Vista Previa - Estado de Cuenta ${clientName}`;
+            } else {
+              setError('⚠️ PDF descargado. No se pudo abrir la vista previa (popup bloqueado)');
+              window.URL.revokeObjectURL(pdfUrl);
+              return;
             }
             
-            // Limpiar la URL
+            // Limpiar la URL después de un tiempo
             setTimeout(() => {
-              window.URL.revokeObjectURL(textUrl);
-            }, 60000);
+              window.URL.revokeObjectURL(pdfUrl);
+            }, 60000); // 1 minuto
           }, 500);
           
-          setError('✅ Reporte descargado como archivo de texto y vista previa abierta');
+          setError('✅ PDF generado, descargado exitosamente y vista previa abierta');
           return;
         }
         
@@ -289,39 +361,30 @@ const TransactionReport: React.FC = () => {
         const fullContent = new TextDecoder().decode(byteArray);
         console.log('Contenido completo:', fullContent);
         
-        // Si parece ser un reporte de texto, mostrarlo en lugar de generar PDF
+        // Si parece ser un reporte de texto, convertirlo a PDF
         if (fullContent.includes('REPORTE') && fullContent.includes('ESTADO DE CUENTA')) {
-          console.log('🔍 Detectado reporte en formato texto');
-          setError('ℹ️ El backend devolvió el reporte en formato texto. Mostrando contenido:');
+          console.log('🔍 Detectado reporte en formato texto - convirtiendo a PDF para vista previa');
           
-          // Crear una ventana con el contenido del reporte en texto
-          const reportWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-          if (reportWindow) {
-            reportWindow.document.write(`
-              <html>
-                <head>
-                  <title>Reporte de Estado de Cuenta - ${clientName}</title>
-                  <style>
-                    body { font-family: 'Courier New', monospace; margin: 20px; background-color: #f5f5f5; }
-                    .report-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                    h1 { color: #333; text-align: center; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
-                    .content { white-space: pre-wrap; line-height: 1.6; }
-                    .note { background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin: 20px 0; }
-                  </style>
-                </head>
-                <body>
-                  <div class="report-container">
-                    <h1>📊 Reporte de Estado de Cuenta</h1>
-                    <div class="note">
-                      <strong>ℹ️ Nota:</strong> El backend devolvió el reporte en formato texto. 
-                      Para generar un PDF real, el backend debe ser actualizado.
-                    </div>
-                    <div class="content">${fullContent}</div>
-                  </div>
-                </body>
-              </html>
-            `);
-            reportWindow.document.close();
+          // Convertir el texto a PDF
+          const pdfBlob = convertTextToPDF(fullContent, `estado-cuenta-${clientName.replace(/\s+/g, '-')}-${startDate}-${endDate}`);
+          const pdfUrl = window.URL.createObjectURL(pdfBlob);
+          
+          console.log('PDF generado exitosamente, tamaño:', pdfBlob.size);
+          console.log('URL del blob:', pdfUrl);
+          
+          // Solo abrir vista previa sin descargar
+          const previewWindow = window.open(pdfUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+          if (previewWindow) {
+            previewWindow.document.title = `Vista Previa - Estado de Cuenta ${clientName}`;
+            setError('✅ PDF generado y vista previa abierta exitosamente');
+            
+            // Limpiar la URL después de un tiempo
+            setTimeout(() => {
+              window.URL.revokeObjectURL(pdfUrl);
+            }, 60000); // 1 minuto
+          } else {
+            setError('❌ No se pudo abrir la vista previa (popup bloqueado)');
+            window.URL.revokeObjectURL(pdfUrl);
           }
           return;
         }

@@ -105,18 +105,73 @@ const TransactionReport: React.FC = () => {
       const blob = new Blob([byteArray], { type: 'application/pdf' });
       
       const url = window.URL.createObjectURL(blob);
+      
+      // Descargar el PDF
       const link = document.createElement('a');
       link.href = url;
       link.download = `estado-cuenta-${clientName.replace(/\s+/g, '-')}-${startDate}-${endDate}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
       
-      setError('✅ PDF descargado exitosamente');
+      // Abrir vista previa en nueva ventana después de la descarga
+      setTimeout(() => {
+        const previewWindow = window.open(url, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        if (previewWindow) {
+          previewWindow.document.title = `Vista Previa - Estado de Cuenta ${clientName}`;
+        } else {
+          setError('⚠️ PDF descargado. No se pudo abrir la vista previa (popup bloqueado)');
+          window.URL.revokeObjectURL(url);
+          return;
+        }
+        
+        // Limpiar la URL después de un tiempo
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 60000); // 1 minuto
+      }, 100);
+      
+      setError('✅ PDF descargado exitosamente y vista previa abierta');
     } catch (error) {
       console.error('Error downloading PDF:', error);
       setError('❌ Error al descargar el PDF');
+    }
+  };
+
+  const handlePreviewPDF = () => {
+    if (!pdfBase64) {
+      setError('❌ No hay PDF disponible para previsualizar');
+      return;
+    }
+
+    try {
+      const byteCharacters = atob(pdfBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      
+      const url = window.URL.createObjectURL(blob);
+      
+      // Solo abrir vista previa sin descargar
+      const previewWindow = window.open(url, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+      if (previewWindow) {
+        previewWindow.document.title = `Vista Previa - Estado de Cuenta ${clientName}`;
+        setError('✅ Vista previa abierta exitosamente');
+        
+        // Limpiar la URL después de un tiempo
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 60000); // 1 minuto
+      } else {
+        setError('❌ No se pudo abrir la vista previa (popup bloqueado)');
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error previewing PDF:', error);
+      setError('❌ Error al abrir la vista previa del PDF');
     }
   };
 
@@ -214,14 +269,24 @@ const TransactionReport: React.FC = () => {
         <div className="card" style={{ marginTop: '20px' }}>
           <div className="view-header">
             <h2>Resultados del Reporte</h2>
-            <button 
-              className="btn btn-success" 
-              onClick={handleDownloadPDF}
-              disabled={!pdfBase64}
-              style={{ marginLeft: 'auto' }}
-            >
-              📄 Descargar PDF
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={handlePreviewPDF}
+                disabled={!pdfBase64}
+                title="Ver vista previa del PDF"
+              >
+                👁️ Vista Previa
+              </button>
+              <button 
+                className="btn btn-success" 
+                onClick={handleDownloadPDF}
+                disabled={!pdfBase64}
+                title="Descargar PDF y abrir vista previa"
+              >
+                📄 Descargar PDF
+              </button>
+            </div>
           </div>
 
           <div className="table-container">
@@ -269,8 +334,10 @@ const TransactionReport: React.FC = () => {
           <li>Complete todos los campos: fecha de inicio, fecha de fin y nombre del cliente</li>
           <li>Haga clic en "Buscar Reporte" para obtener los movimientos</li>
           <li>Si existen movimientos, se mostrará la lista de transacciones</li>
-          <li>Use el botón "Descargar PDF" para obtener el reporte en formato PDF</li>
+          <li>Use el botón "👁️ Vista Previa" para ver el PDF sin descargarlo</li>
+          <li>Use el botón "📄 Descargar PDF" para descargar el archivo y abrir vista previa automáticamente</li>
           <li>La fecha de inicio no puede ser mayor que la fecha de fin</li>
+          <li>Si aparece "popup bloqueado", permita ventanas emergentes para ver la vista previa</li>
         </ul>
       </div>
     </div>

@@ -50,17 +50,46 @@ de transacciones no está disponible en el puerto 8003.
   const testServerConnection = async () => {
     try {
       console.log('Probando conectividad con el servidor...');
-      const response = await axios.get('/transaction/health', {
-        timeout: 5000
+      
+      // Probar primero con el endpoint de health si existe
+      try {
+        const healthResponse = await axios.get('/transaction/health', {
+          timeout: 5000
+        });
+        console.log('Health check exitoso:', healthResponse.status);
+        setError('✅ Servidor disponible (health check OK)');
+        return;
+      } catch (healthError) {
+        console.log('Health check falló, probando endpoint de reporte...', healthError);
+      }
+      
+      // Probar con el endpoint de reporte usando una fecha de prueba
+      const testDate = '2024-01-01';
+      const response = await axios.get(`/transaction/report?date=${testDate}`, {
+        timeout: 5000,
+        headers: {
+          'Accept': 'application/pdf'
+        }
       });
-      console.log('Servidor respondió:', response.status);
-      setError('✅ Servidor disponible');
+      console.log('Endpoint de reporte respondió:', response.status);
+      console.log('Content-Type:', response.headers['content-type']);
+      setError('✅ Servidor responde - Endpoint de reporte disponible');
+      
     } catch (error) {
       console.error('Error de conectividad:', error);
       if (axios.isAxiosError(error)) {
         console.log('Status:', error.response?.status);
         console.log('URL llamada:', error.config?.url);
-        setError(`❌ Servidor no disponible en puerto 8003. Usando datos de prueba.`);
+        
+        if (error.response?.status === 500) {
+          setError(`⚠️ Servidor responde pero con error 500 - Revisar logs del servidor`);
+        } else if (error.response?.status === 404) {
+          setError(`❌ Endpoint no encontrado (404) - Verificar que /transaction/report existe`);
+        } else {
+          setError(`❌ Error del servidor (${error.response?.status || 'timeout'})`);
+        }
+      } else {
+        setError(`❌ Error de red: ${error instanceof Error ? error.message : 'Error desconocido'}`);
       }
     }
   };
@@ -102,9 +131,30 @@ de transacciones no está disponible en el puerto 8003.
         window.URL.revokeObjectURL(url);
         
       } catch (serverError) {
-        console.warn('Servidor no disponible, generando reporte mock:', serverError);
+        console.warn('Servidor devolvió error:', serverError);
         
-        // Generar un PDF mock como fallback (archivo de texto como ejemplo)
+        if (axios.isAxiosError(serverError) && serverError.response) {
+          console.log('Status del error:', serverError.response.status);
+          console.log('Headers de la respuesta:', serverError.response.headers);
+          
+          // Intentar leer el contenido de la respuesta de error para debugging
+          try {
+            const errorBlob = serverError.response.data;
+            const errorText = await errorBlob.text();
+            console.log('Contenido del error del servidor:', errorText);
+            
+            // Si el servidor devolvió un error 500 pero con contenido útil
+            if (serverError.response.status === 500) {
+              setError(`❌ Error del servidor (500): ${errorText || 'Error interno del servidor'}`);
+              return;
+            }
+          } catch (readError) {
+            console.log('No se pudo leer el contenido del error:', readError);
+          }
+        }
+        
+        // Generar un reporte mock como fallback (archivo de texto como ejemplo)
+        console.log('Generando reporte de respaldo...');
         const mockPdfContent = generateMockPdfContent(date);
         const blob = new Blob([mockPdfContent], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);
@@ -116,7 +166,7 @@ de transacciones no está disponible en el puerto 8003.
         link.remove();
         window.URL.revokeObjectURL(url);
         
-        setError('⚠️ Usando datos de prueba (servidor no disponible en puerto 8003)');
+        setError('⚠️ Error del servidor - Descargando datos de prueba');
       }
       
     } catch (error) {

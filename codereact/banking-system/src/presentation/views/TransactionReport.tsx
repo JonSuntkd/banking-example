@@ -7,6 +7,16 @@ const TransactionReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Función para convertir fecha de YYYY-MM-DD a DD/MM/YYYY
+  const formatDateForServer = (inputDate: string): string => {
+    if (!inputDate) return '';
+    
+    const [year, month, day] = inputDate.split('-');
+    const formattedDate = `${day}/${month}/${year}`;
+    console.log(`Convirtiendo fecha: ${inputDate} -> ${formattedDate}`);
+    return formattedDate;
+  };
+
   // Función para generar contenido PDF mock (texto simple)
   const generateMockPdfContent = (reportDate: string): string => {
     const content = `
@@ -64,8 +74,11 @@ de transacciones no está disponible en el puerto 8003.
       }
       
       // Probar con el endpoint de reporte usando una fecha de prueba
-      const testDate = '2024-01-01';
-      const response = await axios.get(`/transaction/report?date=${testDate}`, {
+      const testDate = '01/01/2024'; // Formato DD/MM/YYYY
+      const testUrl = `/transaction/report?date=${testDate}`;
+      console.log('Probando endpoint:', testUrl);
+      
+      const response = await axios.get(testUrl, {
         timeout: 5000,
         headers: {
           'Accept': 'application/pdf'
@@ -104,12 +117,17 @@ de transacciones no está disponible en el puerto 8003.
       setLoading(true);
       setError(null);
       
-      console.log('Haciendo petición a:', `/transaction/report?date=${date}`);
-      console.log('Fecha seleccionada:', date);
+      // Convertir la fecha al formato que espera el servidor (DD/MM/YYYY)
+      const serverDate = formatDateForServer(date);
+      const reportUrl = `/transaction/report?date=${serverDate}`;
+      
+      console.log('Haciendo petición a:', reportUrl);
+      console.log('Fecha seleccionada (input):', date);
+      console.log('Fecha formateada para servidor:', serverDate);
       
       // Primero intentar con el servidor real
       try {
-        const response = await axios.get(`/transaction/report?date=${date}`, {
+        const response = await axios.get(reportUrl, {
           responseType: 'blob',
           headers: {
             'Accept': 'application/pdf'
@@ -118,17 +136,20 @@ de transacciones no está disponible en el puerto 8003.
         });
 
         console.log('Respuesta recibida del servidor real:', response.status);
+        console.log('Content-Type:', response.headers['content-type']);
         
         // Crear un blob URL y descargar el archivo
         const blob = new Blob([response.data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `reporte-movimientos-${date}.pdf`;
+        link.download = `reporte-movimientos-${serverDate.replace(/\//g, '-')}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
+        
+        setError('✅ Reporte descargado exitosamente');
         
       } catch (serverError) {
         console.warn('Servidor devolvió error:', serverError);
@@ -239,6 +260,14 @@ de transacciones no está disponible en el puerto 8003.
           <li>El archivo PDF se descargará automáticamente con los movimientos de la fecha seleccionada</li>
           <li>El reporte incluye todas las transacciones realizadas en la fecha especificada</li>
         </ul>
+        
+        <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f0f8ff', border: '1px solid #0066cc', borderRadius: '4px' }}>
+          <strong>📅 Formato de fecha:</strong> La fecha se envía al servidor en formato DD/MM/YYYY
+          <br />
+          <small style={{ color: '#666' }}>
+            Por ejemplo: 29/09/2025 para el 29 de septiembre de 2025
+          </small>
+        </div>
       </div>
     </div>
   );

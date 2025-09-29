@@ -17,95 +17,7 @@ const TransactionReport: React.FC = () => {
     return formattedDate;
   };
 
-  // Función para generar contenido PDF mock (texto simple)
-  const generateMockPdfContent = (reportDate: string): string => {
-    const content = `
-REPORTE DE MOVIMIENTOS BANCARIOS (DATOS DE PRUEBA)
-==================================================
 
-Fecha del reporte: ${reportDate}
-Generado el: ${new Date().toLocaleString()}
-
-TRANSACCIONES ENCONTRADAS:
---------------------------
-
-1. Depósito - $500.00
-   Cliente: Juan Pérez
-   Cuenta: 1001-2345
-   Hora: 10:30 AM
-
-2. Retiro - $150.00
-   Cliente: María García
-   Cuenta: 1001-6789
-   Hora: 2:15 PM
-
-3. Transferencia - $300.00
-   Cliente: Carlos López
-   Cuenta Origen: 1001-1111
-   Cuenta Destino: 1001-2222
-   Hora: 4:45 PM
-
-RESUMEN:
---------
-Total transacciones: 3
-Monto total procesado: $950.00
-
-Nota: Este es un reporte de prueba generado porque el servidor 
-de transacciones no está disponible en el puerto 8003.
-`;
-    return content;
-  };
-
-  // Función para probar la conectividad con el servidor
-  const testServerConnection = async () => {
-    try {
-      console.log('Probando conectividad con el servidor...');
-      
-      // Probar primero con el endpoint de health si existe
-      try {
-        const healthResponse = await axios.get('/transaction/health', {
-          timeout: 5000
-        });
-        console.log('Health check exitoso:', healthResponse.status);
-        setError('✅ Servidor disponible (health check OK)');
-        return;
-      } catch (healthError) {
-        console.log('Health check falló, probando endpoint de reporte...', healthError);
-      }
-      
-      // Probar con el endpoint de reporte usando una fecha de prueba
-      const testDate = '01/01/2024'; // Formato DD/MM/YYYY
-      const testUrl = `/transaction/report?date=${testDate}`;
-      console.log('Probando endpoint:', testUrl);
-      
-      const response = await axios.get(testUrl, {
-        timeout: 5000,
-        headers: {
-          'Accept': 'application/pdf'
-        }
-      });
-      console.log('Endpoint de reporte respondió:', response.status);
-      console.log('Content-Type:', response.headers['content-type']);
-      setError('✅ Servidor responde - Endpoint de reporte disponible');
-      
-    } catch (error) {
-      console.error('Error de conectividad:', error);
-      if (axios.isAxiosError(error)) {
-        console.log('Status:', error.response?.status);
-        console.log('URL llamada:', error.config?.url);
-        
-        if (error.response?.status === 500) {
-          setError(`⚠️ Servidor responde pero con error 500 - Revisar logs del servidor`);
-        } else if (error.response?.status === 404) {
-          setError(`❌ Endpoint no encontrado (404) - Verificar que /transaction/report existe`);
-        } else {
-          setError(`❌ Error del servidor (${error.response?.status || 'timeout'})`);
-        }
-      } else {
-        setError(`❌ Error de red: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-      }
-    }
-  };
 
   const handleGenerateReport = async () => {
     if (!date) {
@@ -152,42 +64,26 @@ de transacciones no está disponible en el puerto 8003.
         setError('✅ Reporte descargado exitosamente');
         
       } catch (serverError) {
-        console.warn('Servidor devolvió error:', serverError);
+        console.warn('Error al generar reporte:', serverError);
         
         if (axios.isAxiosError(serverError) && serverError.response) {
           console.log('Status del error:', serverError.response.status);
-          console.log('Headers de la respuesta:', serverError.response.headers);
           
-          // Intentar leer el contenido de la respuesta de error para debugging
-          try {
-            const errorBlob = serverError.response.data;
-            const errorText = await errorBlob.text();
-            console.log('Contenido del error del servidor:', errorText);
-            
-            // Si el servidor devolvió un error 500 pero con contenido útil
-            if (serverError.response.status === 500) {
-              setError(`❌ Error del servidor (500): ${errorText || 'Error interno del servidor'}`);
-              return;
-            }
-          } catch (readError) {
-            console.log('No se pudo leer el contenido del error:', readError);
+          // Verificar si es un error 404 o similar que indica "no data found"
+          if (serverError.response.status === 404 || serverError.response.status === 204) {
+            setError('❌ No se encontraron movimientos para la fecha seleccionada');
+            return;
+          }
+          
+          // Para otros errores del servidor
+          if (serverError.response.status >= 500) {
+            setError('❌ Error del servidor. Por favor, intente más tarde');
+            return;
           }
         }
         
-        // Generar un reporte mock como fallback (archivo de texto como ejemplo)
-        console.log('Generando reporte de respaldo...');
-        const mockPdfContent = generateMockPdfContent(date);
-        const blob = new Blob([mockPdfContent], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `reporte-movimientos-mock-${date}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        
-        setError('⚠️ Error del servidor - Descargando datos de prueba');
+        // Error genérico
+        setError('❌ No se encontraron movimientos para la fecha seleccionada');
       }
       
     } catch (error) {
@@ -228,46 +124,38 @@ de transacciones no está disponible en el puerto 8003.
         </div>
         
         {error && (
-          <div className="error" style={{ color: 'red', margin: '10px 0' }}>
+          <div 
+            className={`message ${error.includes('✅') ? 'success' : 'error'}`} 
+            style={{ 
+              margin: '10px 0', 
+              padding: '10px', 
+              borderRadius: '4px',
+              backgroundColor: error.includes('✅') ? '#d4edda' : '#f8d7da',
+              color: error.includes('✅') ? '#155724' : '#721c24',
+              border: `1px solid ${error.includes('✅') ? '#c3e6cb' : '#f5c6cb'}`
+            }}
+          >
             {error}
           </div>
         )}
         
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleGenerateReport}
-            disabled={loading || !date}
-          >
-            {loading ? 'Generando...' : 'Buscar y Descargar PDF'}
-          </button>
-          
-          <button 
-            className="btn btn-secondary" 
-            onClick={testServerConnection}
-            disabled={loading}
-          >
-            Probar Conectividad
-          </button>
-        </div>
+        <button 
+          className="btn btn-primary" 
+          onClick={handleGenerateReport}
+          disabled={loading || !date}
+        >
+          {loading ? 'Generando...' : 'Buscar y Descargar PDF'}
+        </button>
       </div>
 
       <div className="info-card" style={{ marginTop: '20px' }}>
         <h3>Instrucciones:</h3>
         <ul>
-          <li>Selecciona una fecha usando el selector de fecha</li>
-          <li>Haz clic en "Buscar y Descargar PDF" para generar el reporte</li>
-          <li>El archivo PDF se descargará automáticamente con los movimientos de la fecha seleccionada</li>
-          <li>El reporte incluye todas las transacciones realizadas en la fecha especificada</li>
+          <li>Selecciona una fecha usando el selector</li>
+          <li>Haz clic en "Buscar y Descargar PDF" para obtener el reporte</li>
+          <li>Si existen movimientos para esa fecha, se descargará automáticamente el PDF</li>
+          <li>Si no hay movimientos, se mostrará un mensaje informativo</li>
         </ul>
-        
-        <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f0f8ff', border: '1px solid #0066cc', borderRadius: '4px' }}>
-          <strong>📅 Formato de fecha:</strong> La fecha se envía al servidor en formato DD/MM/YYYY
-          <br />
-          <small style={{ color: '#666' }}>
-            Por ejemplo: 29/09/2025 para el 29 de septiembre de 2025
-          </small>
-        </div>
       </div>
     </div>
   );

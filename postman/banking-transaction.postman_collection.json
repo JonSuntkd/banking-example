@@ -1,0 +1,164 @@
+{
+	"info": {
+		"_postman_id": "a5bcd519-f6a6-4024-86f0-c06b0471cf55",
+		"name": "banking-transaction",
+		"description": "Colección para probar el microservicio de transacciones bancarias",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "26168463"
+	},
+	"item": [
+		{
+			"name": "Crear Transacción",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"accountNumber\": \"225487\",\n  \"transactionType\": \"Deposito\",\n  \"amount\": 575.00\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8003/transaction",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Crear Retiro",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"accountNumber\": \"225487\",\n  \"transactionType\": \"Retiro\",\n  \"amount\": 100.00\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8003/transaction",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Obtener Todas las Transacciones",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8003/transaction",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Reporte de Movimientos",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8003/transaction/report?date=10/2/2022",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction",
+						"report"
+					],
+					"query": [
+						{
+							"key": "date",
+							"value": "10/2/2022"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Actualizar Transacción",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"accountNumber\": \"225487\",\n  \"transactionType\": \"Deposito\",\n  \"amount\": 1000.00\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8003/transaction/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Eliminar Transacción",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8003/transaction/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -6,8 +6,28 @@ const BASE_URL = '/api/v1/client';
 
 export class ClientApiRepository implements IClientRepository {
     async getAll(): Promise<Client[]> {
-        const response = await axios.get(BASE_URL);
-        return response.data;
+        try {
+            console.log('Making request to:', BASE_URL);
+            const response = await axios.get(BASE_URL);
+            console.log('Response status:', response.status);
+            console.log('Response data:', response.data);
+            
+            // Verificar si la respuesta es un array
+            if (!Array.isArray(response.data)) {
+                console.error('Expected array but got:', typeof response.data, response.data);
+                throw new Error('Server response is not an array');
+            }
+            
+            return response.data;
+        } catch (error) {
+            console.error('Error in getAll:', error);
+            if (axios.isAxiosError(error)) {
+                console.error('Response status:', error.response?.status);
+                console.error('Response data:', error.response?.data);
+                console.error('Response headers:', error.response?.headers);
+            }
+            throw error;
+        }
     }
 
 

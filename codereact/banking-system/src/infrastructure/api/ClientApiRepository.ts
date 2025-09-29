@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Client } from '../../domain/entities/Client';
 import { IClientRepository } from '../../domain/repositories/IClientRepository';
 
-const BASE_URL = 'http://localhost:8001/api/v1/client';
+const BASE_URL = '/api/v1/client';
 
 export class ClientApiRepository implements IClientRepository {
     async getAll(): Promise<Client[]> {

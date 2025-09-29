@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Transaction } from '../../domain/entities/Transaction';
 import { ITransactionRepository } from '../../domain/repositories/ITransactionRepository';
 
-const BASE_URL = 'http://localhost:8003/transaction';
+const BASE_URL = '/transaction';
 
 export class TransactionApiRepository implements ITransactionRepository {
     async getAll(): Promise<Transaction[]> {

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Account } from '../../domain/entities/Account';
 import { IAccountRepository } from '../../domain/repositories/IAccountRepository';
 
-const BASE_URL = 'http://localhost:8002/account';
+const BASE_URL = '/account';
 
 export class AccountApiRepository implements IAccountRepository {
     async getAll(): Promise<Account[]> {

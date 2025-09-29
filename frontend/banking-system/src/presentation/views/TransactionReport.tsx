@@ -3,13 +3,14 @@ import axios from 'axios';
 import '../styles/Views.css';
 
 interface ReportData {
-  id: number;
-  accountNumber: string;
-  transactionType: string;
-  amount: number;
-  date: string;
-  clientName: string;
-  balance: number;
+  fecha: string;
+  cliente: string;
+  numeroCuenta: string;
+  tipo: string;
+  saldoInicial: number;
+  estado: boolean;
+  movimiento: number;
+  saldoDisponible: number;
 }
 
 interface ReportResponse {
@@ -128,7 +129,16 @@ const TransactionReport: React.FC = () => {
   };
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('es-ES');
+    // La fecha ya viene en formato DD/MM/YYYY, solo la devolvemos tal como está
+    return dateString;
+  };
+
+  const getMovementType = (movimiento: number): string => {
+    return movimiento > 0 ? 'Depósito' : 'Retiro';
+  };
+
+  const getStatusText = (estado: boolean): string => {
+    return estado ? 'Activa' : 'Inactiva';
   };
 
   return (
@@ -219,28 +229,32 @@ const TransactionReport: React.FC = () => {
               <thead>
                 <tr>
                   <th>Fecha</th>
-                  <th>No. Cuenta</th>
                   <th>Cliente</th>
+                  <th>No. Cuenta</th>
                   <th>Tipo</th>
-                  <th>Monto</th>
-                  <th>Saldo</th>
+                  <th>Estado</th>
+                  <th>Saldo Inicial</th>
+                  <th>Movimiento</th>
+                  <th>Saldo Disponible</th>
                 </tr>
               </thead>
               <tbody>
-                {reportData.map((transaction) => (
-                  <tr key={transaction.id}>
-                    <td>{formatDate(transaction.date)}</td>
-                    <td>{transaction.accountNumber}</td>
-                    <td>{transaction.clientName}</td>
+                {reportData.map((transaction, index) => (
+                  <tr key={index}>
+                    <td>{formatDate(transaction.fecha)}</td>
+                    <td>{transaction.cliente}</td>
+                    <td>{transaction.numeroCuenta}</td>
+                    <td>{transaction.tipo}</td>
                     <td>
-                      <span className={`status ${transaction.transactionType === 'Deposito' ? 'active' : 'inactive'}`}>
-                        {transaction.transactionType}
+                      <span className={`status ${transaction.estado ? 'active' : 'inactive'}`}>
+                        {getStatusText(transaction.estado)}
                       </span>
                     </td>
-                    <td className={transaction.transactionType === 'Deposito' ? 'positive' : 'negative'}>
-                      {transaction.transactionType === 'Deposito' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
+                    <td>{formatCurrency(transaction.saldoInicial)}</td>
+                    <td className={transaction.movimiento > 0 ? 'positive' : 'negative'}>
+                      {transaction.movimiento > 0 ? '+' : ''}{formatCurrency(transaction.movimiento)}
                     </td>
-                    <td>{formatCurrency(transaction.balance)}</td>
+                    <td>{formatCurrency(transaction.saldoDisponible)}</td>
                   </tr>
                 ))}
               </tbody>

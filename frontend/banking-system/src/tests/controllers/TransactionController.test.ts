@@ -83,13 +83,14 @@ describe('TransactionController', () => {
       const mockReportResponse = {
         reportData: [
           {
-            id: 1,
-            accountNumber: '123456',
-            transactionType: 'Deposito',
-            amount: 1000,
-            date: '2024-03-25',
-            clientName: 'Jose Lema',
-            balance: 2000,
+            fecha: '28/09/2025',
+            cliente: 'Jose Lema',
+            numeroCuenta: '478758',
+            tipo: 'Ahorro',
+            saldoInicial: 1375.00,
+            estado: true,
+            movimiento: 575.00,
+            saldoDisponible: 1425.00,
           },
         ],
         pdfBase64: 'base64EncodedPDFString',

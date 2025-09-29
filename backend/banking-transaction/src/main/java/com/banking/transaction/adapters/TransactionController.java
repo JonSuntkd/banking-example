@@ -60,6 +60,33 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getAccountStatementReport(startDate, endDate, clientName.trim()));
     }
 
+    @GetMapping("/reports-report/preview")
+    public ResponseEntity<String> getAccountStatementReportPreview(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam String clientName) {
+        
+        if (startDate == null || endDate == null) {
+            throw new RuntimeException("Los parámetros 'startDate' y 'endDate' son requeridos");
+        }
+        
+        if (clientName == null || clientName.trim().isEmpty()) {
+            throw new RuntimeException("El parámetro 'clientName' es requerido");
+        }
+        
+        if (startDate.isAfter(endDate)) {
+            throw new RuntimeException("La fecha de inicio no puede ser posterior a la fecha de fin");
+        }
+        
+        AccountStatementReportResponse response = transactionService.getAccountStatementReport(startDate, endDate, clientName.trim());
+        
+        // Decodificar el PDF base64 para mostrar el contenido
+        byte[] decodedBytes = java.util.Base64.getDecoder().decode(response.getPdfBase64());
+        String decodedContent = new String(decodedBytes);
+        
+        return ResponseEntity.ok(decodedContent);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<TransactionResponse> update(@PathVariable Long id, @RequestBody TransactionRequest request) {
         return ResponseEntity.ok(transactionService.updateTransaction(id, request));

@@ -187,6 +187,45 @@
 			"response": []
 		},
 		{
+			"name": "Reporte Estado de Cuenta - Preview PDF",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8003/transaction/reports-report/preview?startDate=2022-02-01&endDate=2022-02-28&clientName=Marianela Montalvo",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"transaction",
+						"reports-report",
+						"preview"
+					],
+					"query": [
+						{
+							"key": "startDate",
+							"value": "2022-02-01",
+							"description": "Fecha de inicio del rango (formato: YYYY-MM-DD)"
+						},
+						{
+							"key": "endDate",
+							"value": "2022-02-28",
+							"description": "Fecha de fin del rango (formato: YYYY-MM-DD)"
+						},
+						{
+							"key": "clientName",
+							"value": "Marianela Montalvo",
+							"description": "Nombre completo del cliente"
+						}
+					]
+				},
+				"description": "Muestra el contenido del PDF decodificado como texto plano para ver el formato del reporte."
+			},
+			"response": []
+		},
+		{
 			"name": "Actualizar Transacción",
 			"request": {
 				"method": "PUT",

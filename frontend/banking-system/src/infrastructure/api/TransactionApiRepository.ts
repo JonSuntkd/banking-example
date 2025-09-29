@@ -20,6 +20,11 @@ export class TransactionApiRepository implements ITransactionRepository {
         return response.data;
     }
 
+    async getReportByClientAndDateRange(startDate: string, endDate: string, clientName: string): Promise<any> {
+        const response = await axios.get(`${BASE_URL}/reports-report?startDate=${startDate}&endDate=${endDate}&clientName=${encodeURIComponent(clientName)}`);
+        return response.data;
+    }
+
     async update(id: number, transaction: Transaction): Promise<Transaction> {
         const response = await axios.put(`${BASE_URL}/${id}`, transaction);
         return response.data;

@@ -284,19 +284,32 @@ public class TransactionServiceImpl implements TransactionService {
         // Simulación básica de generación de PDF
         // En una implementación real, aquí usaríamos iText, Apache PDFBox, o similar
         StringBuilder pdfContent = new StringBuilder();
-        pdfContent.append("REPORTE DE ESTADO DE CUENTA\\n\\n");
+        pdfContent.append("====================================\n");
+        pdfContent.append("       REPORTE DE ESTADO DE CUENTA\n");
+        pdfContent.append("====================================\n\n");
         
-        for (AccountStatementDTO item : reportItems) {
-            pdfContent.append("Cliente: ").append(item.getCliente()).append("\\n");
-            pdfContent.append("Fecha: ").append(item.getFecha()).append("\\n");
-            pdfContent.append("Número Cuenta: ").append(item.getNumeroCuenta()).append("\\n");
-            pdfContent.append("Tipo: ").append(item.getTipo()).append("\\n");
-            pdfContent.append("Saldo Inicial: ").append(item.getSaldoInicial()).append("\\n");
-            pdfContent.append("Estado: ").append(item.getEstado()).append("\\n");
-            pdfContent.append("Movimiento: ").append(item.getMovimiento()).append("\\n");
-            pdfContent.append("Saldo Disponible: ").append(item.getSaldoDisponible()).append("\\n");
-            pdfContent.append("\\n----------------------------\\n\\n");
+        if (!reportItems.isEmpty()) {
+            pdfContent.append("Cliente: ").append(reportItems.get(0).getCliente()).append("\n");
+            pdfContent.append("Fecha de generación: ").append(java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))).append("\n\n");
         }
+        
+        for (int i = 0; i < reportItems.size(); i++) {
+            AccountStatementDTO item = reportItems.get(i);
+            pdfContent.append("TRANSACCIÓN #").append(i + 1).append("\n");
+            pdfContent.append("------------------------------------\n");
+            pdfContent.append("Fecha del Movimiento: ").append(item.getFecha()).append("\n");
+            pdfContent.append("Número de Cuenta: ").append(item.getNumeroCuenta()).append("\n");
+            pdfContent.append("Tipo de Cuenta: ").append(item.getTipo()).append("\n");
+            pdfContent.append("Estado de Cuenta: ").append(item.getEstado() ? "Activa" : "Inactiva").append("\n");
+            pdfContent.append("Saldo Inicial: $").append(item.getSaldoInicial()).append("\n");
+            pdfContent.append("Monto del Movimiento: $").append(item.getMovimiento()).append("\n");
+            pdfContent.append("Saldo Disponible: $").append(item.getSaldoDisponible()).append("\n");
+            pdfContent.append("------------------------------------\n\n");
+        }
+        
+        pdfContent.append("====================================\n");
+        pdfContent.append("        FIN DEL REPORTE\n");
+        pdfContent.append("====================================");
         
         // Convertir a Base64 (simulado)
         return Base64.getEncoder().encodeToString(pdfContent.toString().getBytes());

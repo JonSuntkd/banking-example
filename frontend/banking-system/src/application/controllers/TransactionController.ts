@@ -16,6 +16,10 @@ export class TransactionController {
         return this.repository.getReport(date);
     }
 
+    async getTransactionReportByClientAndDateRange(startDate: string, endDate: string, clientName: string): Promise<any> {
+        return this.repository.getReportByClientAndDateRange(startDate, endDate, clientName);
+    }
+
     async updateTransaction(id: number, transaction: Transaction): Promise<Transaction> {
         return this.repository.update(id, transaction);
     }

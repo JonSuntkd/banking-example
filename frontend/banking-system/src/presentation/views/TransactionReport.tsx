@@ -129,8 +129,71 @@ const TransactionReport: React.FC = () => {
       console.log('PDF Header:', pdfHeader);
       
       if (!pdfHeader.startsWith('%PDF')) {
+        console.warn('⚠️ El contenido no es un PDF válido. Detectando tipo de contenido...');
+        
+        // Decodificar todo el contenido para ver qué es
+        const fullContent = new TextDecoder().decode(byteArray);
+        console.log('Contenido completo:', fullContent);
+        
+        // Si parece ser un reporte de texto, mostrarlo en lugar de generar PDF
+        if (fullContent.includes('REPORTE') && fullContent.includes('ESTADO DE CUENTA')) {
+          console.log('🔍 Detectado reporte en formato texto - creando versión descargable');
+          
+          // Crear un archivo de texto descargable
+          const textBlob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' });
+          const textUrl = window.URL.createObjectURL(textBlob);
+          
+          // Descargar como archivo de texto
+          const link = document.createElement('a');
+          link.href = textUrl;
+          link.download = `reporte-texto-${clientName.replace(/\s+/g, '-')}-${startDate}-${endDate}.txt`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          
+          // Mostrar vista previa del contenido
+          setTimeout(() => {
+            const reportWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+            if (reportWindow) {
+              reportWindow.document.write(`
+                <html>
+                  <head>
+                    <title>Reporte de Estado de Cuenta - ${clientName}</title>
+                    <style>
+                      body { font-family: 'Courier New', monospace; margin: 20px; background-color: #f5f5f5; }
+                      .report-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                      h1 { color: #333; text-align: center; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
+                      .content { white-space: pre-wrap; line-height: 1.6; }
+                      .note { background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin: 20px 0; }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="report-container">
+                      <h1>📊 Reporte de Estado de Cuenta</h1>
+                      <div class="note">
+                        <strong>ℹ️ Nota:</strong> El backend devolvió el reporte en formato texto. 
+                        Archivo descargado como .txt. Para generar un PDF real, el backend debe ser actualizado.
+                      </div>
+                      <div class="content">${fullContent}</div>
+                    </div>
+                  </body>
+                </html>
+              `);
+              reportWindow.document.close();
+            }
+            
+            // Limpiar la URL
+            setTimeout(() => {
+              window.URL.revokeObjectURL(textUrl);
+            }, 60000);
+          }, 500);
+          
+          setError('✅ Reporte descargado como archivo de texto y vista previa abierta');
+          return;
+        }
+        
         console.warn('El archivo no parece ser un PDF válido');
-        // Intentar de todos modos
+        // Intentar de todos modos si no se detecta como texto
       }
       
       const blob = new Blob([byteArray], { type: 'application/pdf' });
@@ -218,8 +281,52 @@ const TransactionReport: React.FC = () => {
       console.log('PDF Header detectado:', pdfHeader);
       console.log('Es PDF válido:', pdfHeader.startsWith('%PDF'));
       
+      // Si no es un PDF válido, podría ser contenido de texto plano
       if (!pdfHeader.startsWith('%PDF')) {
-        throw new Error('El archivo no tiene una cabecera PDF válida');
+        console.warn('⚠️ El contenido no es un PDF válido. Detectando tipo de contenido...');
+        
+        // Decodificar todo el contenido para ver qué es
+        const fullContent = new TextDecoder().decode(byteArray);
+        console.log('Contenido completo:', fullContent);
+        
+        // Si parece ser un reporte de texto, mostrarlo en lugar de generar PDF
+        if (fullContent.includes('REPORTE') && fullContent.includes('ESTADO DE CUENTA')) {
+          console.log('🔍 Detectado reporte en formato texto');
+          setError('ℹ️ El backend devolvió el reporte en formato texto. Mostrando contenido:');
+          
+          // Crear una ventana con el contenido del reporte en texto
+          const reportWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+          if (reportWindow) {
+            reportWindow.document.write(`
+              <html>
+                <head>
+                  <title>Reporte de Estado de Cuenta - ${clientName}</title>
+                  <style>
+                    body { font-family: 'Courier New', monospace; margin: 20px; background-color: #f5f5f5; }
+                    .report-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                    h1 { color: #333; text-align: center; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
+                    .content { white-space: pre-wrap; line-height: 1.6; }
+                    .note { background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin: 20px 0; }
+                  </style>
+                </head>
+                <body>
+                  <div class="report-container">
+                    <h1>📊 Reporte de Estado de Cuenta</h1>
+                    <div class="note">
+                      <strong>ℹ️ Nota:</strong> El backend devolvió el reporte en formato texto. 
+                      Para generar un PDF real, el backend debe ser actualizado.
+                    </div>
+                    <div class="content">${fullContent}</div>
+                  </div>
+                </body>
+              </html>
+            `);
+            reportWindow.document.close();
+          }
+          return;
+        }
+        
+        throw new Error(`El archivo no tiene una cabecera PDF válida. Contenido detectado: ${fullContent.substring(0, 100)}...`);
       }
       
       const blob = new Blob([byteArray], { type: 'application/pdf' });

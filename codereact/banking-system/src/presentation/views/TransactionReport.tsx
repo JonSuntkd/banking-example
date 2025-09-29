@@ -1,55 +1,57 @@
 import React, { useState } from 'react';
-import { Transaction } from '../../domain/entities/Transaction';
-import { TransactionController } from '../../application/controllers/TransactionController';
-import { TransactionApiRepository } from '../../infrastructure/api/TransactionApiRepository';
-import { jsPDF } from 'jspdf';
+import axios from 'axios';
 import '../styles/Views.css';
 
 const TransactionReport: React.FC = () => {
   const [date, setDate] = useState<string>('');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const controller = new TransactionController(new TransactionApiRepository());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = async () => {
-    try {
-      const data = await controller.getTransactionReport(date);
-      setTransactions(data);
-    } catch (error) {
-      console.error('Error getting report:', error);
+  const handleGenerateReport = async () => {
+    if (!date) {
+      setError('Por favor selecciona una fecha');
+      return;
     }
-  };
 
-  const handleDownloadPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add title
-    doc.setFontSize(16);
-    doc.text('Reporte de Movimientos', 20, 20);
-    
-    // Add date
-    doc.setFontSize(12);
-    doc.text(`Fecha: ${date}`, 20, 30);
-    
-    // Add table headers
-    doc.text('Fecha', 20, 40);
-    doc.text('Cuenta', 60, 40);
-    doc.text('Tipo', 100, 40);
-    doc.text('Monto', 140, 40);
-    doc.text('Saldo', 180, 40);
-    
-    // Add table content
-    let y = 50;
-    transactions.forEach((transaction) => {
-      doc.text(transaction.date || '', 20, y);
-      doc.text(transaction.accountNumber, 60, y);
-      doc.text(transaction.transactionType, 100, y);
-      doc.text(`$${transaction.amount.toFixed(2)}`, 140, y);
-      doc.text(`$${transaction.balance?.toFixed(2) || '0.00'}`, 180, y);
-      y += 10;
-    });
-    
-    // Save the PDF
-    doc.save('reporte-movimientos.pdf');
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Llamar al endpoint para obtener el PDF
+      const response = await axios.get(`/transaction/report?date=${date}`, {
+        responseType: 'blob', // Importante para manejar archivos binarios
+        headers: {
+          'Accept': 'application/pdf'
+        }
+      });
+
+      // Crear un blob URL y descargar el archivo
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte-movimientos-${date}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Error generating report:', error);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          setError('No se encontraron movimientos para la fecha seleccionada');
+        } else if (error.response && error.response.status >= 500) {
+          setError('Error del servidor. Por favor, intente más tarde');
+        } else {
+          setError('Error al generar el reporte. Verifique que el servicio esté disponible');
+        }
+      } else {
+        setError('Error inesperado al generar el reporte');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,49 +62,41 @@ const TransactionReport: React.FC = () => {
 
       <div className="card">
         <div className="form-group">
-          <label>Fecha:</label>
+          <label htmlFor="reportDate">Fecha del Reporte:</label>
           <input
+            id="reportDate"
             type="date"
             className="form-control"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            disabled={loading}
           />
         </div>
-        <button className="btn btn-primary" onClick={handleSearch}>
-          Buscar
+        
+        {error && (
+          <div className="error" style={{ color: 'red', margin: '10px 0' }}>
+            {error}
+          </div>
+        )}
+        
+        <button 
+          className="btn btn-primary" 
+          onClick={handleGenerateReport}
+          disabled={loading || !date}
+        >
+          {loading ? 'Generando...' : 'Buscar y Descargar PDF'}
         </button>
       </div>
 
-      {transactions.length > 0 && (
-        <>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Número de Cuenta</th>
-                <th>Tipo</th>
-                <th>Monto</th>
-                <th>Saldo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((transaction, index) => (
-                <tr key={index}>
-                  <td>{transaction.date}</td>
-                  <td>{transaction.accountNumber}</td>
-                  <td>{transaction.transactionType}</td>
-                  <td>${transaction.amount.toFixed(2)}</td>
-                  <td>${transaction.balance?.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <button className="btn btn-success" onClick={handleDownloadPDF}>
-            Descargar PDF
-          </button>
-        </>
-      )}
+      <div className="info-card" style={{ marginTop: '20px' }}>
+        <h3>Instrucciones:</h3>
+        <ul>
+          <li>Selecciona una fecha usando el selector de fecha</li>
+          <li>Haz clic en "Buscar y Descargar PDF" para generar el reporte</li>
+          <li>El archivo PDF se descargará automáticamente con los movimientos de la fecha seleccionada</li>
+          <li>El reporte incluye todas las transacciones realizadas en la fecha especificada</li>
+        </ul>
+      </div>
     </div>
   );
 };

@@ -1,0 +1,92 @@
+<div class="content-header">
+  <h1 class="page-title">Clientes</h1>
+</div>
+
+<div class="action-bar">
+  <div class="search-container">
+    <input 
+      type="text" 
+      class="search-input" 
+      placeholder="Buscar"
+      [(ngModel)]="searchTerm"
+      (input)="onSearch()">
+  </div>
+  <button class="btn btn-primary" (click)="createClient()">
+    Nuevo
+  </button>
+</div>
+
+<div *ngIf="loading" class="text-center">
+  <div class="loading-spinner"></div>
+  Cargando clientes...
+</div>
+
+<div *ngIf="error" class="alert alert-danger">
+  {{ error }}
+  <button class="btn btn-secondary mt-2" (click)="loadClients()">
+    Reintentar
+  </button>
+</div>
+
+<div *ngIf="!loading && !error" class="data-table">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre Completo</th>
+        <th>Dirección</th>
+        <th>Teléfono</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let client of filteredClients; trackBy: trackByClientId">
+        <td>{{ client.id }}</td>
+        <td>{{ client.person.fullName }}</td>
+        <td>{{ client.person.address }}</td>
+        <td>{{ client.person.phone }}</td>
+        <td>
+          <span class="status-badge" [ngClass]="getStatusClass(client.status)">
+            {{ getStatusText(client.status) }}
+          </span>
+        </td>
+        <td>
+          <div class="d-flex gap-1">
+            <button 
+              class="btn btn-warning btn-sm" 
+              (click)="editClient(client.id!)"
+              title="Editar">
+              Editar
+            </button>
+            <button 
+              *ngIf="!client.status"
+              class="btn btn-success btn-sm" 
+              (click)="activateClient(client.id!)"
+              title="Activar">
+              Activar
+            </button>
+            <button 
+              *ngIf="client.status"
+              class="btn btn-secondary btn-sm" 
+              (click)="deactivateClient(client.id!)"
+              title="Desactivar">
+              Desactivar
+            </button>
+            <button 
+              class="btn btn-danger btn-sm" 
+              (click)="deleteClient(client.id!)"
+              title="Eliminar">
+              Eliminar
+            </button>
+          </div>
+        </td>
+      </tr>
+      <tr *ngIf="filteredClients.length === 0">
+        <td colspan="6" class="text-center">
+          <em>No se encontraron clientes</em>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
